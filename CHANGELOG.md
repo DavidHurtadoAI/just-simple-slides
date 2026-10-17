@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.9
+
+- Wait for a restored Markdown tab to finish loading before **Edit source** moves the cursor. This keeps Obsidian's saved cursor from overriding the selected slide after restarting the app.
+
 ## 0.1.8
 
 - Add **Edit source** to jump to the selected slide in the existing native Markdown editor, including pop-out windows, without closing the slide tab or creating duplicate note tabs.
