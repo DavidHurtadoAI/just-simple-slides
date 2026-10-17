@@ -129,6 +129,7 @@ export class SlidesView extends TextFileView {
     this.filename = identity.createSpan({ cls: 'jss-filename' });
     this.counter = identity.createSpan({ cls: 'jss-counter' });
     const actions = toolbar.createDiv({ cls: 'jss-toolbar-actions' });
+    this.button(actions, 'file-text', 'Edit selected slide in Markdown', () => { void this.editSource(); }, 'Edit source');
     this.button(actions, 'panel-bottom', 'Toggle slide editor', () => {
       this.root.toggleClass('jss-hide-source', !this.root.hasClass('jss-hide-source'));
       this.surface.scheduleFit();
@@ -527,6 +528,35 @@ export class SlidesView extends TextFileView {
   }
 
   selectSourceOffset(offset: number): void { this.select(slideAt(this.deck, offset)); }
+
+  private async editSource(): Promise<void> {
+    const file = this.file;
+    const slide = this.deck.slides[this.index];
+    if (!file || !slide) return;
+    const start = slide.start + Math.max(0, slide.markdown.search(/\S/));
+    // Obsidian's native editor uses logical LF offsets even for CRLF files.
+    const offset = this.source.slice(0, start).replace(/\r\n|\r/g, '\n').length;
+    await this.save();
+    let leaf = this.app.workspace.getLeavesOfType('markdown')
+      .find(leaf => leaf.view instanceof MarkdownView && leaf.view.file === file || leaf.getViewState().state?.file === file.path);
+    if (!leaf) {
+      leaf = this.app.workspace.getLeaf('tab');
+      await leaf.openFile(file, { state: { mode: 'source' }, active: true });
+    }
+    await this.app.workspace.revealLeaf(leaf);
+    if (leaf.view instanceof MarkdownView && leaf.view.getMode() !== 'source') {
+      const state = leaf.getViewState();
+      await leaf.setViewState({ ...state, state: { ...state.state, mode: 'source' } });
+    }
+    if (!(leaf.view instanceof MarkdownView)) return;
+    this.app.workspace.setActiveLeaf(leaf, { focus: true });
+    leaf.view.contentEl.ownerDocument.defaultView?.focus();
+    const editor = leaf.view.editor;
+    const cursor = editor.offsetToPos(offset);
+    editor.setCursor(cursor);
+    editor.scrollIntoView({ from: cursor, to: cursor }, true);
+    editor.focus();
+  }
 
   focusEditor(): void { if (this.deck.slides[this.index]?.areas[this.areaIndex]) this.editor?.focus(); }
 

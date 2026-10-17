@@ -17,6 +17,15 @@ const check=(name,result=true)=>{assert.ok(result,name);results.push(name);conso
 const click=label=>page.getByRole('button',{name:label,exact:true}).click();
 const tabs=()=>page.getByRole('tablist',{name:'Slide editor areas'}).getByRole('tab');
 const area=()=>page.locator('.jss-editor .cm-content');
+const editSource=async()=>{
+  await click('Edit selected slide in Markdown');
+  await page.waitForFunction(()=>app.workspace.activeLeaf?.view.getViewType()==='markdown');
+};
+const atSelectedSlide=()=>page.evaluate(()=>{
+  const view=jssSlidesTestLeaf.view,slide=view.deck.slides[view.index],editor=app.workspace.activeLeaf.view.editor;
+  const offset=editor.posToOffset(editor.getCursor()),logical=s=>s.replace(/\r\n|\r/g,'\n');
+  return offset>=logical(view.getViewData().slice(0,slide.start)).length&&offset<=logical(view.getViewData().slice(0,slide.end)).length&&editor.hasFocus();
+});
 const state=()=>page.evaluate(()=>{
   const view=jssSlidesTestLeaf.view;
   return {data:view.getViewData(),native:jssNativeTestLeaf.view.editor?.getValue(),index:view.index,count:view.deck.slides.length,editor:view.editor.state.sliceDoc(),areaIndex:view.areaIndex,slides:view.deck.slides.map(s=>({markdown:s.markdown,areas:s.areas}))};
@@ -41,7 +50,7 @@ try {
     if(path!=='C:/Users/dhtor/OneDrive/@Obsidian-dev/Development/just-simple-slides/qa/vault')throw Error('Refusing non-test vault');
     await new Promise(resolve=>app.workspace.onLayoutReady(resolve));
     for(const type of ['just-simple-slides','markdown'])for(const leaf of app.workspace.getLeavesOfType(type)){
-      if(type==='just-simple-slides'||leaf.view.file?.path===note){if(leaf.view.file)await leaf.view.save();await leaf.setViewState({type:'empty',state:{}});}
+      if(type==='just-simple-slides'||leaf.view.file?.path===note||leaf.getViewState().state?.file===note){if(leaf.view.file)await leaf.view.save();await leaf.setViewState({type:'empty',state:{}});}
     }
     await app.plugins.loadManifests();
     if(app.plugins.plugins['just-simple-slides'])await app.plugins.disablePlugin('just-simple-slides');
@@ -69,13 +78,25 @@ try {
   check('private content stays out of the preview and thumbnails',!(await page.locator('.jss-stage').innerText()).includes('Markdown stays the source')&&!(await page.locator('.jss-thumb-frame').allInnerTexts()).some(t=>t.includes('Markdown stays the source')));
   check('title and subtitle are inferred from headings',await page.locator('.jss-stage .jss-title').innerText()==='Just Simple Slides'&&await page.locator('.jss-stage .jss-subtitle').innerText()==='Your Markdown. Your theme. Your presentation.');
 
+  for(const index of [0,4,5]){
+    await page.evaluate(index=>jssSlidesTestLeaf.view.select(index),index);await editSource();
+    check(`Edit source focuses the existing native editor at slide ${index+1}`,await atSelectedSlide()&&await page.evaluate(()=>app.workspace.activeLeaf===jssNativeTestLeaf));
+    await slides();
+  }
+  check('source navigation keeps both tabs and file contents unchanged',await page.evaluate(()=>app.workspace.getLeavesOfType('markdown').length===1&&app.workspace.getLeavesOfType('just-simple-slides').includes(jssSlidesTestLeaf))&&(await state()).data===original&&(await state()).native===original);
+  await page.evaluate(async()=>{const state=jssNativeTestLeaf.getViewState();await jssNativeTestLeaf.setViewState({...state,state:{...state.state,mode:'preview'}});});
+  await slides();await editSource();
+  check('Edit source switches a reading-view note into editing at the selected slide',await page.evaluate(()=>jssNativeTestLeaf.view.getMode()==='source')&&await atSelectedSlide());
+  await slides();await page.evaluate(()=>jssSlidesTestLeaf.view.select(0));
+
   await native();
   await page.evaluate(async()=>{await app.plugins.plugins['just-simple-slides'].open(jssNativeTestLeaf.view.file);globalThis.jssSecondSlidesLeaf=app.workspace.activeLeaf;});
   check('opening the same Markdown again creates another slide tab',await page.evaluate(()=>jssSecondSlidesLeaf!==jssSlidesTestLeaf&&jssSecondSlidesLeaf!==jssNativeTestLeaf&&app.workspace.getLeavesOfType('just-simple-slides').length===2));
   await page.keyboard.press('Control+End');await page.keyboard.insertText(' SECOND_TAB_PRIVATE');
   check('two slide tabs and the native editor share unsaved area edits',await page.evaluate(()=>jssSlidesTestLeaf.view.getViewData().includes('SECOND_TAB_PRIVATE')&&jssSlidesTestLeaf.view.getViewData()===jssSecondSlidesLeaf.view.getViewData()&&jssNativeTestLeaf.view.editor.getValue()===jssSecondSlidesLeaf.view.getViewData()));
   await pause(100);
-  await page.keyboard.press('Control+w');await pause(200);
+  await page.locator('.workspace-tab-header[data-type="just-simple-slides"].is-active .workspace-tab-header-inner-close-button').click();
+  await page.waitForFunction(()=>!app.workspace.getLeavesOfType('just-simple-slides').includes(jssSecondSlidesLeaf));
   check('native close-tab closes only the new slide tab',await page.evaluate(()=>!app.workspace.getLeavesOfType('just-simple-slides').includes(jssSecondSlidesLeaf)&&app.workspace.getLeavesOfType('markdown').includes(jssNativeTestLeaf)));
   await native();await page.keyboard.press('Control+z');await pause(250);
   check('native undo history survives opening and closing slide tabs',(await state()).data===original&&(await state()).native===original);
@@ -99,6 +120,7 @@ try {
   const dragAfter=await state();const expected=[...dragBefore.slides];expected.splice(2,0,expected.splice(0,1)[0]);
   check('drag and drop reorders slides with their private areas',JSON.stringify(dragAfter.slides)===JSON.stringify(expected));
   check('the moved slide stays selected and native Markdown updates immediately',dragAfter.index===2&&dragAfter.native===dragAfter.data);
+  await editSource();check('source navigation follows a slide after drag-and-drop',await atSelectedSlide());await slides();
   check('drag feedback clears after dropping',await page.locator('.jss-dragging,.jss-drop-before,.jss-drop-after').count()===0);
   await page.keyboard.press('Control+z');check('drag and drop is one undo step',(await state()).data===dragBefore.data&&(await state()).native===dragBefore.data);
   await page.keyboard.press('Control+Shift+z');check('drag and drop can be redone',(await state()).data===dragAfter.data);
@@ -117,6 +139,7 @@ try {
   const edited=await state();const expectedEdit=multi.replace('> Second private.','> Second private.\n>\n> PRIVATE_ADDED');
   check('area typing changes only the selected callout body',edited.data===expectedEdit);
   check('area typing appears in the original native Markdown editor',edited.native===expectedEdit);
+  await editSource();check('source navigation preserves unsaved private-area edits',await atSelectedSlide()&&(await state()).native===expectedEdit);await slides();
   check('all private names and content remain hidden while normal callouts stay visible',!(await page.locator('.jss-stage').innerText()).includes('PRIVATE_')&&await page.locator('.jss-stage .callout[data-callout="tip"]').count()===1);
   await page.getByRole('tab',{name:'Alpha PRIVATE_NAME',exact:true}).nth(1).click();check('repeated names select independent areas',(await state()).editor==='Fourth private.');
   await page.keyboard.press('Control+z');check('undo restores the correct area after switching selectors',(await state()).data===multi&&(await state()).areaIndex===1&&(await state()).native===multi);
@@ -157,6 +180,7 @@ try {
   check('CRLF area bodies load as separate editor lines',await page.evaluate(()=>jssSlidesTestLeaf.view.editor.state.doc.lines)===3);
   await area().click();await page.keyboard.press('Control+End');await page.keyboard.insertText(' Added.');await pause(250);
   check('CRLF area edits preserve all bytes outside that callout',(await state()).data===crlf.replace('Last line.','Last line. Added.'));
+  await editSource();check('source navigation handles original CRLF offsets',await atSelectedSlide());await slides();
   await pause(2400);check('native-owned autosave preserves every line through native newline normalization',(await readFile(`qa/vault/${note}`,'utf8')).replace(/\r\n/g,'\n')===crlf.replace('Last line.','Last line. Added.').replace(/\r\n/g,'\n'));
 
   await setSource(original);await slides();await thumbs.nth(1).click();await page.getByRole('tab',{name:'Cues',exact:true}).click();
@@ -258,6 +282,7 @@ try {
     return stage.width > 120 && editor.width > 120 && stage.right <= innerWidth + 1 && stage.left >= 0 && present.right <= innerWidth + 1;
   }));
   await page.screenshot({ path: 'qa/editor-narrow.png' });
+  check('Edit source remains available as an icon in narrow panes',await page.getByRole('button',{name:'Edit selected slide in Markdown',exact:true}).isVisible());
   await cdp.send('Emulation.clearDeviceMetricsOverride');
   await page.evaluate(async original => {
     const view = jssSlidesTestLeaf.view;
@@ -283,10 +308,17 @@ try {
   await slides();await page.evaluate(()=>jssSlidesTestLeaf.view.focusEditor());
   await page.keyboard.press('Control+End');await page.keyboard.insertText(' KEEP_LATEST');await pause(2400);
   check('a surviving slide tab saves without a native Markdown editor',await readFile(`qa/vault/${note}`,'utf8')===await page.evaluate(()=>jssSlidesTestLeaf.view.getViewData()));
-  await page.evaluate(async({note,original})=>{const v=jssSlidesTestLeaf.view;v.setViewData(original,true);await v.save();globalThis.jssNativeTestLeaf=app.workspace.getLeaf('tab');await jssNativeTestLeaf.openFile(app.vault.getAbstractFileByPath(note));},{note,original});
+  await page.evaluate(original=>{const v=jssSlidesTestLeaf.view;v.setViewData(original,true);v.select(4);},original);
+  await editSource();await page.evaluate(()=>{globalThis.jssNativeTestLeaf=app.workspace.activeLeaf;});
+  check('Edit source opens a new native tab only when the original was closed',await atSelectedSlide()&&await page.evaluate(()=>app.workspace.getLeavesOfType('markdown').length===1&&app.workspace.getLeavesOfType('just-simple-slides').includes(jssSlidesTestLeaf)));
   await pause(250);
   check('reopening the native Markdown editor retains the restored source',await page.evaluate(original=>jssNativeTestLeaf.view.editor.getValue()===original,original)&&await readFile(`qa/vault/${note}`,'utf8')===original);
   await slides();
+  await page.evaluate(async()=>{app.workspace.moveLeafToPopout(jssNativeTestLeaf);await app.workspace.revealLeaf(jssNativeTestLeaf);});
+  await page.waitForFunction(()=>jssNativeTestLeaf.view.contentEl.ownerDocument!==document);
+  await slides();await editSource();
+  check('Edit source reuses the same Markdown editor in a pop-out window',await atSelectedSlide()&&await page.evaluate(()=>app.workspace.activeLeaf===jssNativeTestLeaf&&jssNativeTestLeaf.view.contentEl.ownerDocument!==document&&app.workspace.getLeavesOfType('markdown').length===1));
+  check('the native pop-out window receives keyboard focus',await page.evaluate(()=>jssNativeTestLeaf.view.contentEl.ownerDocument.hasFocus()));
   check('no plugin runtime errors',errors.filter(e=>/just-simple-slides|jss-|TypeError|ReferenceError/.test(e)).length===0);
   await writeFile('qa/results.json',JSON.stringify({pass:true,results,typography,fitting,stress,errors},null,2));
 }catch(error){await page.screenshot({path:'qa/failure.png'});await writeFile('qa/results.json',JSON.stringify({pass:false,error:String(error),results,errors,state:await state()},null,2));throw error;}finally{await browser.close();}

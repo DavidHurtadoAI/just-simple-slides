@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.8
+
+- Add **Edit source** to jump to the selected slide in the existing native Markdown editor, including pop-out windows, without closing the slide tab or creating duplicate note tabs.
+- Switch reading view into editing when needed. If the native note was closed, open a new tab at the selected slide. Preserve pending notes and handle native editor offsets for CRLF files.
+
 ## 0.1.7
 
 - Open slides from Markdown in a new Obsidian tab, preserving the original editor, selection, and undo history. Close the slide tab using Obsidian's normal controls.

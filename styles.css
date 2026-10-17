@@ -126,7 +126,9 @@
   .jss-thumb-number { display: none; }
   .jss-stage { margin: 10px; }
   .jss-stage-header { padding: 10px 10px 0; }
-  .jss-source-hint, .jss-density, .jss-toolbar .jss-text-button:not(.mod-cta) { display: none; }
+  .jss-source-hint, .jss-density { display: none; }
+  .jss-toolbar .jss-text-button:not(.mod-cta) { width: 32px; min-width: 32px; height: 32px; padding: 6px; }
+  .jss-toolbar .jss-text-button:not(.mod-cta) > span:last-child { display: none; }
   .jss-source-header { padding: 8px; }
   .jss-app .jss-editor-tab { font-size: 11px; padding: 3px 6px; }
   .jss-source-header > span { display: none; }

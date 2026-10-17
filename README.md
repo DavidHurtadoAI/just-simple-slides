@@ -18,7 +18,7 @@ Markdown is the perfect format for content: plain text, easy to edit, easy to re
 
 1. Open a Markdown note.
 2. Run **Just Simple Slides: Edit as slides**, click the presentation ribbon icon, or right-click the note and choose **Edit as slides**. The slide view opens in a new tab, keeping your Markdown editor, selection, and undo history in place.
-3. Pick a thumbnail on the left. Edit the content in its original Markdown tab; select a private `[!slide]` area below the preview to edit its notes. You can also move or split the tabs using Obsidian's normal window controls.
+3. Pick a thumbnail on the left. Click **Edit source** to focus the existing Markdown editor at that slide, including in another Obsidian window. If the note was closed, a new Markdown tab opens. Select a private `[!slide]` area below the preview to edit its notes. You can also move or split the tabs using Obsidian's normal window controls.
 4. Click **Present**, press **F5**, or run **Just Simple Slides: Start presentation**.
 5. Press **Esc** to return to the same slide. Close the Just Simple Slides tab with its native **×** or **Ctrl/Cmd+W** when finished; your Markdown tab stays open.
 
