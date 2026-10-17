@@ -1,0 +1,10 @@
+{
+  "id": "just-simple-slides",
+  "name": "Just Simple Slides",
+  "version": "0.1.5",
+  "minAppVersion": "1.5.0",
+  "description": "Edit Markdown presentations with slide thumbnails, automatic layouts, and a full-screen player that follows your theme.",
+  "author": "David Hurtado",
+  "authorUrl": "https://github.com/DavidHurtadoAI",
+  "isDesktopOnly": false
+}
