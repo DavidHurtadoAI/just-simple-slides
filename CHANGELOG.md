@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.6
+
+- Declare Obsidian 1.7.2 as the minimum version required by the workspace and keyboard-scope APIs.
+- Replace all CSS `!important` declarations with scoped selectors and use a compatible scrollbar style.
+- Remove redundant non-null assertions from source offset handling.
+- Add the official Obsidian ESLint checks and CSS compatibility checks to every build; fail on warnings.
+- Build and attest all three installable assets in GitHub Actions, verify their provenance, and publish only `main.js`, `manifest.json`, and `styles.css`.
+
+
 ## 0.1.5
 
 - Add one lower-editor selector per private `[!slide]` callout, beside **full slide source**.

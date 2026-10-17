@@ -1,5 +1,5 @@
 /* All colors and fonts come from the current Obsidian theme. */
-.jss-view { padding: 0 !important; overflow: hidden; }
+.workspace-leaf-content > .view-content.jss-view { padding: 0; overflow: hidden; }
 .jss-app { height: 100%; display: flex; flex-direction: column; color: var(--text-normal); background: var(--background-primary); }
 .jss-toolbar { min-height: 56px; padding: 10px 16px; border-bottom: 1px solid var(--background-modifier-border); display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-shrink: 0; }
 .jss-identity, .jss-toolbar-actions { display: flex; align-items: center; gap: 10px; min-width: 0; }
@@ -47,7 +47,8 @@
 .jss-source-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 18px; color: var(--text-muted); font-size: var(--font-ui-smaller); }
 .jss-source-hint { color: var(--text-faint); font-size: 11px; }
 .jss-source-header > span { flex-shrink: 0; }
-.jss-editor-tabs { display: flex; align-items: center; gap: 3px; min-width: 0; overflow-x: auto; scrollbar-width: thin; }
+.jss-editor-tabs::-webkit-scrollbar { height: 4px; }
+.jss-editor-tabs { display: flex; align-items: center; gap: 3px; min-width: 0; overflow-x: auto; }
 .jss-app .jss-editor-tab { height: 26px; padding: 3px 9px; border: none; box-shadow: none; background: transparent; color: var(--text-muted); font-size: var(--font-ui-smaller); border-radius: var(--radius-s); white-space: nowrap; cursor: pointer; }
 .jss-app .jss-editor-tab[aria-selected="true"] { background: var(--background-modifier-hover); color: var(--text-normal); }
 .jss-app .jss-editor-tab { flex-shrink: 0; }
@@ -59,7 +60,7 @@
 .jss-editor .cm-gutters { color: var(--text-faint); background: var(--background-primary); border: none; font-size: 11px; min-width: 34px; }
 .jss-editor .cm-focused { outline: none; }
 .jss-editor .cm-cursor { border-left-color: var(--text-normal); }
-.jss-editor .cm-selectionBackground { background: var(--text-selection) !important; }
+.jss-view .jss-editor .cm-editor .cm-selectionBackground, .jss-view .jss-editor .cm-editor.cm-focused .cm-selectionBackground { background: var(--text-selection); }
 .jss-editor .cm-panels { background: var(--background-secondary); color: var(--text-normal); border-color: var(--background-modifier-border); }
 .jss-editor .cm-search input { background: var(--background-primary); color: var(--text-normal); }
 .jss-hide-source .jss-source, .jss-hide-source .jss-divider-horizontal { display: none; }
@@ -69,37 +70,37 @@
 .jss-slide { position: absolute; box-sizing: border-box; width: 1600px; height: 900px; padding: 76px 88px; display: flex; flex-direction: column; gap: 34px; transform-origin: top left; overflow: hidden; background: var(--background-primary); color: var(--text-normal); font-family: var(--font-text); font-size: 34px; line-height: 1.45; text-align: left; contain: layout; }
 .jss-slide.jss-preparing { visibility: hidden; }
 /* Also covers callouts introduced later by asynchronous Markdown postprocessors. */
-.jss-slide .callout[data-callout="slide" i] { display: none !important; }
+.jss-slide.markdown-rendered .callout[data-callout="slide" i] { display: none; }
 .jss-slide-header { flex: 0 0 auto; min-width: 0; display: flex; flex-direction: column; gap: 18px; }
 .jss-title-region, .jss-subtitle-region { position: relative; width: 100%; overflow: hidden; }
 .jss-fit-content { position: absolute; top: 0; left: 0; transform-origin: top left; display: flow-root; overflow-wrap: anywhere; }
-.jss-slide .jss-title { font-family: var(--h1-font, var(--font-text)); font-size: 74px !important; font-weight: var(--h1-weight, 700); line-height: 1.12 !important; letter-spacing: -0.025em; margin: 0 !important; padding: 0 !important; border: none !important; color: var(--h1-color, var(--text-normal)); }
-.jss-slide .jss-subtitle { font-family: var(--h2-font, var(--font-text)); font-size: 38px !important; font-weight: var(--h2-weight, 500); line-height: 1.25 !important; margin: 0 !important; padding: 0 !important; border: none !important; color: var(--text-muted); }
+.jss-slide.markdown-rendered .jss-slide-header .jss-title { font-family: var(--h1-font, var(--font-text)); font-size: 74px; font-weight: var(--h1-weight, 700); line-height: 1.12; letter-spacing: -0.025em; margin: 0; padding: 0; border: none; color: var(--h1-color, var(--text-normal)); }
+.jss-slide.markdown-rendered .jss-slide-header .jss-subtitle { font-family: var(--h2-font, var(--font-text)); font-size: 38px; font-weight: var(--h2-weight, 500); line-height: 1.25; margin: 0; padding: 0; border: none; color: var(--text-muted); }
 .jss-slide-body { display: flex; flex: 1; min-height: 0; min-width: 0; gap: 68px; align-items: stretch; }
 .jss-text-region { position: relative; min-width: 0; flex: 1 1 52%; overflow: hidden; }
 .jss-text { font-family: var(--font-text); line-height: 1.45; }
-.jss-text > :first-child { margin-top: 0 !important; }
-.jss-text > :last-child { margin-bottom: 0 !important; }
-.jss-slide .jss-text p, .jss-slide .jss-text ul, .jss-slide .jss-text ol, .jss-slide .jss-text blockquote, .jss-slide .jss-text pre, .jss-slide .jss-text table { font-size: 1em; line-height: 1.45; margin-top: 0; margin-bottom: 0.7em; }
-.jss-slide .jss-text li { margin-bottom: 0.3em; }
-.jss-slide .jss-text li p { margin-bottom: 0.25em; }
-.jss-slide .jss-text :is(h1,h2,h3,h4,h5,h6) { font-size: 1.2em; line-height: 1.25; margin: 0.8em 0 0.4em; }
-.jss-slide .jss-text :is(ul,ol) { padding-inline-start: 1.3em; }
-.jss-slide .jss-text table { width: 100%; }
-.jss-slide .jss-text :is(th,td) { padding: 0.25em 0.4em; font-size: 0.85em; }
-.jss-slide .jss-text pre { white-space: pre-wrap; overflow-wrap: anywhere; overflow: visible; padding: 0.65em; }
-.jss-slide .jss-text code { font-size: 0.82em; white-space: pre-wrap; overflow-wrap: anywhere; }
-.jss-slide .jss-text .callout { padding: 0.65em; margin: 0 0 0.7em; font-size: 0.9em; }
-.jss-slide .jss-text .callout-title { font-size: 1em; }
-.jss-slide .jss-text .callout-content { overflow: visible; }
-.jss-slide .jss-text .task-list-item-checkbox { width: 0.8em; height: 0.8em; }
+.jss-slide.markdown-rendered .jss-text > :first-child { margin-top: 0; }
+.jss-slide.markdown-rendered .jss-text > :last-child { margin-bottom: 0; }
+.jss-slide.markdown-rendered .jss-text p, .jss-slide.markdown-rendered .jss-text ul, .jss-slide.markdown-rendered .jss-text ol, .jss-slide.markdown-rendered .jss-text blockquote, .jss-slide.markdown-rendered .jss-text pre, .jss-slide.markdown-rendered .jss-text table { font-size: 1em; line-height: 1.45; margin-top: 0; margin-bottom: 0.7em; }
+.jss-slide.markdown-rendered .jss-text li { margin-bottom: 0.3em; }
+.jss-slide.markdown-rendered .jss-text li p { margin-bottom: 0.25em; }
+.jss-slide.markdown-rendered .jss-text :is(h1,h2,h3,h4,h5,h6) { font-size: 1.2em; line-height: 1.25; margin: 0.8em 0 0.4em; }
+.jss-slide.markdown-rendered .jss-text :is(ul,ol) { padding-inline-start: 1.3em; }
+.jss-slide.markdown-rendered .jss-text table { width: 100%; }
+.jss-slide.markdown-rendered .jss-text :is(th,td) { padding: 0.25em 0.4em; font-size: 0.85em; }
+.jss-slide.markdown-rendered .jss-text pre { white-space: pre-wrap; overflow-wrap: anywhere; overflow: visible; padding: 0.65em; }
+.jss-slide.markdown-rendered .jss-text code { font-size: 0.82em; white-space: pre-wrap; overflow-wrap: anywhere; }
+.jss-slide.markdown-rendered .jss-text .callout { padding: 0.65em; margin: 0 0 0.7em; font-size: 0.9em; }
+.jss-slide.markdown-rendered .jss-text .callout-title { font-size: 1em; }
+.jss-slide.markdown-rendered .jss-text .callout-content { overflow: visible; }
+.jss-slide.markdown-rendered .jss-text .task-list-item-checkbox { width: 0.8em; height: 0.8em; }
 .jss-media { display: grid; grid-template-columns: repeat(var(--jss-media-columns, 1), minmax(0, 1fr)); grid-auto-rows: minmax(0, 1fr); gap: 24px; flex: 1 1 48%; min-width: 0; min-height: 0; }
 .jss-media-cell { display: flex; align-items: center; justify-content: center; min-height: 0; min-width: 0; overflow: hidden; }
 .jss-media-cell > :is(p,span,div,a) { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; min-height: 0; min-width: 0; margin: 0; }
-.jss-slide .jss-media img { display: block; width: 100% !important; height: 100% !important; max-width: 100% !important; max-height: 100% !important; object-fit: contain; border-radius: var(--radius-m); }
-.jss-slide .image-embed { padding: 0; background: transparent; }
-.jss-slide .jss-text img, .jss-slide .jss-text svg { max-width: 100%; height: auto; }
-.jss-slide .heading-collapse-indicator, .jss-slide .collapse-indicator, .jss-slide .copy-code-button, .jss-slide .edit-block-button, .jss-slide .metadata-container { display: none !important; }
+.jss-slide.markdown-rendered .jss-media .jss-media-cell img { display: block; width: 100%; height: 100%; max-width: 100%; max-height: 100%; object-fit: contain; border-radius: var(--radius-m); }
+.jss-slide.markdown-rendered .image-embed { padding: 0; background: transparent; }
+.jss-slide.markdown-rendered .jss-text img, .jss-slide.markdown-rendered .jss-text svg { max-width: 100%; height: auto; }
+.jss-slide.markdown-rendered .heading-collapse-indicator, .jss-slide.markdown-rendered .collapse-indicator, .jss-slide.markdown-rendered .copy-code-button, .jss-slide.markdown-rendered .edit-block-button, .jss-slide.markdown-rendered .metadata-container { display: none; }
 .jss-slide[data-layout="title"] { justify-content: center; }
 .jss-slide[data-layout="title"] .jss-slide-header { text-align: center; }
 .jss-empty-slide { margin: auto; color: var(--text-faint); font-size: 36px; }

@@ -17,7 +17,7 @@ export function parseDeck(source: string): Deck {
   if (lines[0]?.[0].replace(/[\r\n]+$/, '').replace(/^\uFEFF/, '').trim() === '---') {
     for (let i = 1; i < lines.length; i++) {
       if (/^(---|\.\.\.)\s*$/.test(lines[i]![0].replace(/[\r\n]+$/, ''))) {
-        prefixEnd = lines[i]!.index! + lines[i]![0].length;
+        prefixEnd = lines[i]!.index + lines[i]![0].length;
         break;
       }
     }
@@ -28,7 +28,7 @@ export function parseDeck(source: string): Deck {
   let fenceSize = 0;
   let inComment = false;
   for (const match of lines) {
-    const offset = match.index!;
+    const offset = match.index;
     if (offset < prefixEnd) continue;
     const line = match[0].replace(/[\r\n]+$/, '');
     const marker = !inComment && line.match(/^ {0,3}(`{3,}|~{3,})(.*)$/);
