@@ -93,11 +93,13 @@ The background, text, accent, and fonts come from Obsidian's CSS variables. No s
 
 ## Installation
 
-1. Download `just-simple-slides-0.1.5.zip` from the [latest release](https://github.com/DavidHurtadoAI/just-simple-slides/releases/latest), or download its three plugin files individually.
-2. Extract `main.js`, `manifest.json`, and `styles.css` into `<vault>/.obsidian/plugins/just-simple-slides/`.
+Requires **Obsidian 1.7.2 or later**.
+
+1. Download `main.js`, `manifest.json`, and `styles.css` from the [latest release](https://github.com/DavidHurtadoAI/just-simple-slides/releases/latest).
+2. Put all three files into `<vault>/.obsidian/plugins/just-simple-slides/`.
 3. Reload Obsidian and enable **Just Simple Slides** in **Settings → Community plugins**.
 
-The plugin is published on GitHub and is not yet listed in Obsidian's Community Plugins directory.
+The plugin is published on GitHub and is not yet listed in Obsidian's Community Plugins directory. From 0.1.6, releases contain only the three files Obsidian installs. Each file is built and signed with GitHub artifact attestations; verify a download with `gh attestation verify main.js --repo DavidHurtadoAI/just-simple-slides` (and likewise for the other files).
 
 Copy both files from `demo/` to a vault to try the six-slide example.
 
@@ -108,6 +110,8 @@ The priority today is **editing a Markdown file as a presentation**: seeing the 
 Future versions will improve presentation mode with restrained **animations and transitions**. They will stay simple and optional. The editor and the presentation experience will remain minimalist: a small set of useful controls, sensible defaults, and your content at the center.
 
 ## Development
+
+`npm run check` runs the official Obsidian ESLint rules, CSS checks for Chromium 114 and `!important`, unit tests, strict TypeScript, and release packaging. Warnings fail the check. Version tags trigger the build, provenance attestation, and publication workflow.
 
 ```sh
 npm ci

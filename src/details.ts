@@ -17,7 +17,7 @@ const interruptsParagraph = /^ {0,3}(?:#{1,6}(?:\s|$)|`{3,}|~{3,}|(?:[-*_][ \t]*
 export function readSlideAreas(markdown: string): SlideArea[] {
   const lines: Line[] = [...markdown.matchAll(/[^\r\n]*(?:\r\n|\n|\r|$)/g)]
     .filter(line => line[0].length)
-    .map(line => ({ text: line[0].replace(/[\r\n]+$/, ''), prefix: '', start: line.index!, end: line.index! + line[0].length }));
+    .map(line => ({ text: line[0].replace(/[\r\n]+$/, ''), prefix: '', start: line.index, end: line.index + line[0].length }));
   const areas: SlideArea[] = [];
   const scan = (lines: Line[]) => {
     let fence = '';

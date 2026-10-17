@@ -1,0 +1,73 @@
+name: Release
+
+on:
+  push:
+    tags: ['[0-9]*.[0-9]*.[0-9]*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+    steps:
+      - name: Check out tagged source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Validate and build
+        run: npm run check
+      - name: Prepare release notes
+        run: |
+          node --input-type=module <<'JS'
+          import { readFileSync, writeFileSync } from 'node:fs';
+          const manifest = JSON.parse(readFileSync('manifest.json', 'utf8'));
+          const notes = readFileSync('CHANGELOG.md', 'utf8').replaceAll('\r\n', '\n').split('## ' + manifest.version + '\n')[1]?.split('\n## ')[0];
+          if (!notes) throw Error('Missing release notes');
+          writeFileSync('release-notes.md', notes.trim() + '\n\nRequires Obsidian ' + manifest.minAppVersion + ' or later. Download main.js, manifest.json and styles.css into <vault>/.obsidian/plugins/just-simple-slides/. All three files were built and attested in GitHub Actions.\n');
+          JS
+      - name: Attest installable assets
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: |
+            dist/main.js
+            dist/manifest.json
+            dist/styles.css
+      - name: Verify provenance before publishing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for file in main.js manifest.json styles.css; do
+            gh attestation verify "dist/$file" --repo "$GITHUB_REPOSITORY" --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/release.yml"
+          done
+      - name: Publish only Obsidian plugin files
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/main.js dist/manifest.json dist/styles.css --verify-tag --title "Just Simple Slides $GITHUB_REF_NAME" --notes-file release-notes.md --latest
+      - name: Verify published assets and attestations
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download "$GITHUB_REF_NAME" --dir published
+          test "$(find published -type f | wc -l)" -eq 3
+          for file in main.js manifest.json styles.css; do
+            cmp "dist/$file" "published/$file"
+            gh attestation verify "published/$file" --repo "$GITHUB_REPOSITORY" --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/release.yml"
+          done

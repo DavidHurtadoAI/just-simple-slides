@@ -1,6 +1,6 @@
 {
   "name": "just-simple-slides",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "private": true,
   "description": "Edit ordinary Markdown as slides and present with your Obsidian theme.",
   "author": "David Hurtado",
@@ -13,16 +13,25 @@
     "dev": "node esbuild.config.mjs --watch",
     "build": "tsc --noEmit && node esbuild.config.mjs",
     "test": "node --experimental-strip-types --test tests/*.test.mjs",
-    "check": "npm test && npm run build && node scripts/package.mjs",
-    "install:test": "node scripts/install.mjs ../.."
+    "check": "npm run lint && npm test && npm run build && node scripts/package.mjs",
+    "install:test": "node scripts/install.mjs ../..",
+    "lint": "eslint src --max-warnings 0 && node scripts/check-css.mjs"
   },
   "devDependencies": {
     "@codemirror/commands": "6.8.1",
     "@codemirror/search": "6.5.11",
     "@codemirror/state": "6.5.0",
     "@codemirror/view": "6.38.6",
+    "doiuse": "6.0.6",
     "esbuild": "0.25.12",
+    "eslint": "10.13.0",
+    "eslint-plugin-obsidianmd": "0.4.2",
     "obsidian": "1.13.1",
-    "typescript": "5.9.3"
+    "postcss": "8.5.30",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.71.2"
+  },
+  "overrides": {
+    "moment": "2.31.0"
   }
 }
