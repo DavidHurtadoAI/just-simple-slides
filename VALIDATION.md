@@ -1,10 +1,11 @@
-# Local validation — 0.1.7
+# Local validation — 0.1.8
 
 Checked on 17 October 2026, Windows desktop, in the actual Obsidian application with an isolated vault and application profile.
 
 - `npm run check`: the full official Obsidian ESLint recommended configuration, CSS compatibility checks, 32 unit tests, strict TypeScript, production build, and version/asset packaging passed with zero lint warnings. The sentence-case rule preserves the plugin name as a brand; no rules are disabled.
-- `scripts/qa-obsidian.mjs`: 87 integration checks passed against the actual Obsidian application, with no runtime errors. The JSON report and original screenshots are in the ignored `qa/` folder.
-- Checked that opening slides from Markdown creates a new tab, preserves the original native editor and cursor, and follows that cursor to the matching slide. Repeating the command from Markdown creates another slide tab. The toolbar has no Markdown button and the lower panel has no full source selector.
+- `scripts/qa-obsidian.mjs`: 99 integration checks passed against the actual Obsidian application, with no runtime errors. The JSON report and original screenshots are in the ignored `qa/` folder.
+- Checked that opening slides from Markdown creates a new tab, preserves the original native editor and cursor, and follows that cursor to the matching slide. Repeating the command from Markdown creates another slide tab. The lower panel has no full source selector.
+- Checked **Edit source** reuses the original native editor, focuses and scrolls to the selected first, middle, and last slides, and leaves both tabs and content intact. Checked navigation after reordering, pending private notes, original CRLF offsets, reading-to-editing mode, opening a missing note tab, and reusing/focusing a real Obsidian pop-out window. The action remains visible as an accessible icon in a narrow pane.
 - Checked one selector per private callout, source order, optional names, repeated names, unnamed and empty areas. Slides without callouts show a non-editable hint; adding the first callout in native Markdown replaces it with an area editor.
 - Checked actual editor input into the second area, byte-for-byte preservation outside that body, arbitrary Markdown without a type form, independent same-name areas, clearing a body without deleting the callout, undo/redo across area selection, and autosave to the real file. CRLF bodies load as separate logical editor lines, and the area replacement preserves surrounding bytes in memory. The native Obsidian editor normalizes CRLF to LF on save; checked that every line survives that normalization.
 - Checked live selector updates after renaming, adding and removing callouts in the native Markdown editor, plus Left/Right, Home and End navigation.
