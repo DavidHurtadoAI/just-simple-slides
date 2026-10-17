@@ -118,7 +118,7 @@ export function moveSlideTo(source: string, deck: Deck, index: number, target: n
   return { source: source.slice(0, deck.prefixEnd) + content, index: target };
 }
 
-export interface Snapshot { source: string; index: number; anchor: number; head: number; mode?: 'markdown' | 'area'; areaIndex?: number }
+export interface Snapshot { source: string; index: number; anchor: number; head: number; areaIndex?: number }
 /** Document-wide undo, including edits before switching slides and slide operations. */
 export class DeckHistory {
   private past: Snapshot[] = [];

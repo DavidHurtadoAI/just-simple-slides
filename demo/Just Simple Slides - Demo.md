@@ -12,7 +12,8 @@ tags: [slides, demo]
 ## Your Markdown. Your theme. Your presentation.
 
 - Choose a slide on the left.
-- Edit its Markdown below the preview.
+- Edit the content in its Markdown tab.
+- Keep private notes below the slide preview.
 - Press **Present** when you are ready.
 
 ---

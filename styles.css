@@ -53,16 +53,19 @@
 .jss-app .jss-editor-tab[aria-selected="true"] { background: var(--background-modifier-hover); color: var(--text-normal); }
 .jss-app .jss-editor-tab { flex-shrink: 0; }
 .jss-editor { flex: 1; min-height: 0; overflow: hidden; }
-.jss-editor .cm-editor { height: 100%; background: var(--background-primary); color: var(--text-normal); font-size: var(--font-text-size); font-family: var(--font-monospace); }
-.jss-editor .cm-scroller { overflow: auto; font-family: inherit; line-height: 1.6; }
+.jss-editor .cm-editor { height: 100%; background: var(--background-primary); color: var(--text-normal); font-size: var(--font-text-size); font-family: var(--font-text); }
+.jss-view .jss-editor .cm-editor .cm-scroller { overflow: auto; font-family: var(--font-text); line-height: var(--line-height-normal); }
 .jss-editor .cm-content { padding: 8px 0 24px; caret-color: var(--text-normal); }
 .jss-editor .cm-line { padding: 0 20px 0 12px; }
-.jss-editor .cm-gutters { color: var(--text-faint); background: var(--background-primary); border: none; font-size: 11px; min-width: 34px; }
+.jss-editor .cm-gutters { color: var(--text-faint); background: var(--background-primary); border: none; font-size: inherit; min-width: 34px; }
 .jss-editor .cm-focused { outline: none; }
 .jss-editor .cm-cursor { border-left-color: var(--text-normal); }
 .jss-view .jss-editor .cm-editor .cm-selectionBackground, .jss-view .jss-editor .cm-editor.cm-focused .cm-selectionBackground { background: var(--text-selection); }
 .jss-editor .cm-panels { background: var(--background-secondary); color: var(--text-normal); border-color: var(--background-modifier-border); }
 .jss-editor .cm-search input { background: var(--background-primary); color: var(--text-normal); }
+.jss-empty-areas { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 20px; color: var(--text-muted); font-family: var(--font-text); font-size: var(--font-text-size); text-align: center; }
+.jss-empty-areas > span:last-child { color: var(--text-faint); font-size: var(--font-ui-small); }
+.jss-editor[hidden], .jss-empty-areas[hidden] { display: none; }
 .jss-hide-source .jss-source, .jss-hide-source .jss-divider-horizontal { display: none; }
 
 /* A fixed coordinate system guarantees identical composition at every display size. */

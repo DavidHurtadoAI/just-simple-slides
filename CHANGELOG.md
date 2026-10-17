@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.7
+
+- Open slides from Markdown in a new Obsidian tab, preserving the original editor, selection, and undo history. Close the slide tab using Obsidian's normal controls.
+- Remove the full slide source selector and the Markdown toolbar button. The lower panel now edits only private `[!slide]` callout bodies, with an empty state when none exist.
+- Use Obsidian's configured text font and size in the private-area editor.
+- Synchronize notes, slide operations, and native Markdown edits across open views, including unsaved changes. Keep saving with the native editor while it is open to prevent stale writes when closing a slide tab.
+
 ## 0.1.6
 
 - Declare Obsidian 1.7.2 as the minimum version required by the workspace and keyboard-scope APIs.

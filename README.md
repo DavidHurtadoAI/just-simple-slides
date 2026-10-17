@@ -8,25 +8,25 @@ PowerPoint is the best tool for slide design. But for developing the content —
 
 Markdown is the perfect format for content: plain text, easy to edit, easy to reuse, and yours to keep. What was missing was a visual editor for working with that content as a presentation.
 
-**Just Simple Slides fills that gap.** Choose a thumbnail, edit the slide below its preview, reorder the story, and keep everything in an ordinary Markdown file. The layout adjusts automatically and follows your Obsidian theme.
+**Just Simple Slides fills that gap.** See the slides, reorder the story, and keep private notes below the preview. Edit your content in Obsidian's native Markdown editor, which stays open in its own tab. Both views share the same ordinary Markdown file. The layout adjusts automatically and follows your Obsidian theme.
 
 [Download the latest release](https://github.com/DavidHurtadoAI/just-simple-slides/releases/latest) · [Installation](#installation) · [Markdown format](#markdown-format)
 
-![Slide thumbnails, automatic text-and-image layout, and the selected-slide Markdown editor in Obsidian](assets/editor.png)
+![Native Markdown and Just Simple Slides tabs, with thumbnails, automatic text-and-image layout, and private notes](assets/editor.png)
 
 ## Start here
 
 1. Open a Markdown note.
-2. Run **Just Simple Slides: Edit as slides**, click the presentation ribbon icon, or right-click the note and choose **Edit as slides**.
-3. Pick a thumbnail on the left. Below the preview, choose **full slide source** or select any private `[!slide]` area beside it.
+2. Run **Just Simple Slides: Edit as slides**, click the presentation ribbon icon, or right-click the note and choose **Edit as slides**. The slide view opens in a new tab, keeping your Markdown editor, selection, and undo history in place.
+3. Pick a thumbnail on the left. Edit the content in its original Markdown tab; select a private `[!slide]` area below the preview to edit its notes. You can also move or split the tabs using Obsidian's normal window controls.
 4. Click **Present**, press **F5**, or run **Just Simple Slides: Start presentation**.
-5. Press **Esc** to return to the same slide. **Markdown** opens the regular Obsidian editor.
+5. Press **Esc** to return to the same slide. Close the Just Simple Slides tab with its native **×** or **Ctrl/Cmd+W** when finished; your Markdown tab stays open.
 
 Use **Just Simple Slides: Create presentation** for a new file. New, duplicate, move up/down, and delete controls are beside the thumbnail rail. **Ctrl/Cmd+Z** undoes edits and slide operations, including after selecting another slide; **Ctrl/Cmd+Shift+Z** or **Ctrl+Y** redoes them.
 
 Drag a thumbnail above or below another to reorder slides. An accent line marks the drop position, and the rail scrolls near its edges. The moved slide stays selected; the Markdown file updates automatically, including its private notes. A reorder is one undo step. Dropping outside the rail cancels the move.
 
-Drag the divider beside the thumbnails to change their width. Drag the divider above the lower editor to change its height. Double-click a divider to reset it, or focus it and use the arrow keys. Panel sizes and the selected editor mode are remembered.
+Drag the divider beside the thumbnails to change their width. Drag the divider above the lower editor to change its height. Double-click a divider to reset it, or focus it and use the arrow keys. Panel sizes and the selected private area are remembered.
 
 ## Markdown format
 
@@ -55,7 +55,7 @@ Some **Markdown** text.
 - Local Obsidian image embeds and standard Markdown images use Obsidian's Markdown renderer. Inline images inside rich blocks stay in their original block.
 - Images preserve their complete aspect ratio. Text and long titles shrink to fit the fixed 16:9 slide. Dense content remains visible but can become small; the editor identifies dense slides.
 - Lists, tables, code, callouts, math, and other Markdown rendered by Obsidian remain content. Preview task checkboxes are read-only.
-- Edits retain the original file's frontmatter, newline style, and untouched slides. There is no sidecar format or conversion.
+- Edits retain the original file's frontmatter and untouched slide content. When the native editor saves, its newline convention applies. There is no sidecar format or conversion.
 
 ## Private slide areas
 
@@ -77,13 +77,13 @@ This is visible content.
 
 We recommend keeping the slide type and presenter notes together in one area, as above. This is a convention: the plugin does not interpret the name, type, or any other field. Write any Markdown you need. The name, body, type, and entire callout are all optional. A slide can have no private areas or as many as you want.
 
-The lower editor always offers **full slide source**, followed by one selector for each `[!slide]` callout in that slide, in source order. A callout's optional name appears only in its selector, apart from the raw source. Unnamed areas use **Area 1**, **Area 2**, and so on; repeated names remain separate selectors. Use Left/Right, Home, or End on the selectors to switch areas. The row scrolls when needed.
+The lower editor contains only private areas: one selector for each `[!slide]` callout in that slide, in source order. A callout's optional name appears only in its selector, apart from the Markdown source. Unnamed areas use **Area 1**, **Area 2**, and so on; repeated names remain separate selectors. Use Left/Right, Home, or End on the selectors to switch areas. The row scrolls when needed. A slide without private areas shows a short hint instead of an editable field.
 
-**full slide source** edits the selected slide's complete Markdown. Selecting a private area edits only its body, without the quote markers or header. Switching areas leaves the file unchanged; edits save to the same Markdown file. Clearing a body keeps the empty callout. Add, rename, or remove areas in **full slide source**; selectors update as you type. Put a blank line between separate callouts, following normal Obsidian Markdown.
+Selecting a private area edits only its body, without the quote markers or header. The editor uses Obsidian's configured text font and size. Switching areas leaves the file unchanged; edits appear in the original Markdown tab and save to the same file. Clearing a body keeps the empty callout. Add, rename, or remove areas in the native Markdown editor; selectors update as you type. Put a blank line between separate callouts, following normal Obsidian Markdown.
 
 Every `[!slide]` callout stays out of the preview, thumbnails, and presentation, including folded callouts. Its name never becomes a slide title or a layout instruction. All other callout types remain visible. New slides include one suggested **Notes** area; existing notes work unchanged, and existing callout titles are simply selector names.
 
-![Private Notes and Cues selectors beside full slide source in the lower editor](assets/details.png)
+![Private Notes and Cues selectors in the lower editor](assets/details.png)
 
 ## Presenting
 
@@ -119,8 +119,8 @@ npm run check
 node scripts/install.mjs /path/to/vault
 ```
 
-Uses the [Obsidian TextFileView API](https://github.com/obsidianmd/obsidian-api) for file lifecycle and autosave, CodeMirror for the slide source, and [Obsidian's Markdown renderer and component lifecycle](https://docs.obsidian.md/plugins/guides/lifecycle-management) for previews. The same measured layout renders the main preview, visible thumbnails, and player. Thumbnails render lazily. No web service, telemetry, presentation framework, or runtime download is required.
+Uses the [Obsidian TextFileView API](https://github.com/obsidianmd/obsidian-api) for file lifecycle, CodeMirror for private callout bodies, and [Obsidian's Markdown renderer and component lifecycle](https://docs.obsidian.md/plugins/guides/lifecycle-management) for previews. While the native Markdown editor is open, it owns saving and receives minimal text replacements that preserve its undo history. All open slide tabs share the current content. The same measured layout renders the main preview, visible thumbnails, and player. Thumbnails render lazily. No web service, telemetry, presentation framework, or runtime download is required.
 
-Native Live Preview, wiki-link autocomplete in the slide editor, slide transitions, export, and a separate presenter window are outside this first version. Use **Markdown** for the full native editor. Arbitrary third-party interactive embeds may impose their own layout or focus behavior.
+The public Obsidian API does not provide an embeddable native editor restricted to a document fragment. The private-area editor uses the same CodeMirror engine and Obsidian typography; full native Live Preview, autocomplete, and Markdown editing remain available in the original note tab. Slide transitions, export, and a separate presenter window are outside this first version. Arbitrary third-party interactive embeds may impose their own layout or focus behavior.
 
 See [VALIDATION.md](VALIDATION.md) for the local test results and platform coverage.
