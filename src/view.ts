@@ -543,6 +543,8 @@ export class SlidesView extends TextFileView {
       leaf = this.app.workspace.getLeaf('tab');
       await leaf.openFile(file, { state: { mode: 'source' }, active: true });
     }
+    // Finish restoring an inactive tab before revealing it can start another load.
+    await leaf.loadIfDeferred();
     await this.app.workspace.revealLeaf(leaf);
     if (leaf.view instanceof MarkdownView && leaf.view.getMode() !== 'source') {
       const state = leaf.getViewState();
