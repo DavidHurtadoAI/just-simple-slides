@@ -7,7 +7,7 @@ import type JustSimpleSlides from './main';
 import { addSlide, DeckHistory, deleteSlide, moveSlide, moveSlideTo, parseDeck, replaceSlide, slideAt, type Deck, type Snapshot } from './deck';
 import { SlideSurface } from './surface';
 import { updateSlideArea } from './details';
-import { clampSize, DEFAULT_LAYOUT, sidebarBounds, sourceBounds, type EditorMode } from './layout';
+import { clampSize, DEFAULT_LAYOUT, sidebarBounds, sourceBounds } from './layout';
 import { PLUGIN_ICON } from './icon';
 
 export const VIEW_TYPE = 'just-simple-slides';
@@ -24,9 +24,9 @@ export class SlidesView extends TextFileView {
   private main!: HTMLElement;
   private sourcePanel!: HTMLElement;
   private editorTabs!: HTMLElement;
+  private emptyAreas!: HTMLElement;
   private tabsSignature = '';
   private modeTabs: HTMLButtonElement[] = [];
-  private editorMode: EditorMode;
   private areaIndex: number;
   private sidebarWidth: number;
   private sourceRatio: number;
@@ -60,7 +60,6 @@ export class SlidesView extends TextFileView {
 
   constructor(leaf: WorkspaceLeaf, private plugin: JustSimpleSlides) {
     super(leaf);
-    this.editorMode = plugin.layout.editorMode;
     this.areaIndex = plugin.layout.areaIndex;
     this.sidebarWidth = plugin.layout.sidebarWidth;
     this.sourceRatio = plugin.layout.sourceRatio;
@@ -76,6 +75,31 @@ export class SlidesView extends TextFileView {
   getDisplayText(): string { return this.file?.basename ?? 'Just Simple Slides'; }
   getIcon(): string { return PLUGIN_ICON; }
   getViewData(): string { return this.source ?? ''; }
+
+  async save(clear = false): Promise<void> {
+    if (!this.file) return;
+    const writer = this.savingView(clear);
+    if (writer !== this) {
+      // One open buffer owns saving. A closing slide tab hands off to a surviving
+      // editor so its pending save cannot later restore stale notes.
+      if (writer instanceof SlidesView) await writer.saveBuffer();
+      else await writer.save();
+      if (clear) this.clear();
+    } else await this.saveBuffer(clear);
+  }
+
+  private saveBuffer(clear = false): Promise<void> { return super.save(clear); }
+
+  private savingView(closing = false): MarkdownView | SlidesView {
+    if (!this.file) return this;
+    for (const { view } of this.app.workspace.getLeavesOfType('markdown')) {
+      if (view instanceof MarkdownView && view.file === this.file) return view;
+    }
+    for (const { view } of this.app.workspace.getLeavesOfType(VIEW_TYPE)) {
+      if (view instanceof SlidesView && view.file === this.file && (!closing || view !== this)) return view;
+    }
+    return this;
+  }
 
   setViewData(data: string, clear: boolean): void {
     if (clear || data !== this.source) {
@@ -105,7 +129,6 @@ export class SlidesView extends TextFileView {
     this.filename = identity.createSpan({ cls: 'jss-filename' });
     this.counter = identity.createSpan({ cls: 'jss-counter' });
     const actions = toolbar.createDiv({ cls: 'jss-toolbar-actions' });
-    this.button(actions, 'file-text', 'Open Markdown', () => { void this.openMarkdown(); }, 'Markdown');
     this.button(actions, 'panel-bottom', 'Toggle slide editor', () => {
       this.root.toggleClass('jss-hide-source', !this.root.hasClass('jss-hide-source'));
       this.surface.scheduleFit();
@@ -185,14 +208,17 @@ export class SlidesView extends TextFileView {
     this.registerDomEvent(tabs, 'keydown', event => {
       if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
       event.preventDefault();
-      const current = this.editorMode === 'markdown' ? 0 : this.areaIndex + 1;
       const count = this.modeTabs.length;
+      if (!count) return;
       const next = event.key === 'Home' ? 0 : event.key === 'End' ? count - 1
-        : (current + (event.key === 'ArrowRight' ? 1 : -1) + count) % count;
-      this.setEditorMode(next ? 'area' : 'markdown', Math.max(0, next - 1));
+        : (this.areaIndex + (event.key === 'ArrowRight' ? 1 : -1) + count) % count;
+      this.selectArea(next);
       this.modeTabs[next]?.focus();
     });
     this.sourceHost = source.createDiv({ cls: 'jss-editor' });
+    this.emptyAreas = source.createDiv({ cls: 'jss-empty-areas' });
+    this.emptyAreas.createSpan({ text: 'No slide areas' });
+    this.emptyAreas.createSpan({ text: 'Add a [!slide] callout in your Markdown note.' });
     this.registerDomEvent(this.sourceHost, 'focusin', () => this.history.breakGroup());
     this.editor = new EditorView({ parent: this.sourceHost, state: this.makeEditorState('') });
     this.panelObserver = new ResizeObserver(() => this.applyPanelSizes());
@@ -218,7 +244,6 @@ export class SlidesView extends TextFileView {
         this.undo(key === 'y' || event.shiftKey);
       }
     }, { capture: true });
-    this.addAction('file-text', 'Open as Markdown', () => { void this.openMarkdown(); });
     this.addAction(PLUGIN_ICON, 'Start presentation', () => { void this.present(); });
     this.loadEditor();
     this.applyPanelSizes();
@@ -312,16 +337,17 @@ export class SlidesView extends TextFileView {
   }
 
   private makeEditorState(markdown: string, anchor = 0, head = anchor): EditorState {
-    // Area bodies are parsed as logical lines; the file may use CRLF or CR.
     const doc = Text.of(markdown.split(/\r\n|\n|\r/));
+    const editable = !!this.deck.slides[this.index]?.areas[this.areaIndex];
     return EditorState.create({
       doc,
       selection: { anchor: Math.min(anchor, doc.length), head: Math.min(head, doc.length) },
       extensions: [
         lineNumbers(), drawSelection(), EditorView.lineWrapping,
+        EditorState.readOnly.of(!editable), EditorView.editable.of(editable),
         EditorState.lineSeparator.of(this.deck.eol), search({ top: true }),
-        placeholder(this.editorMode === 'area' ? 'Write anything here. This area stays private.' : 'Write your slide in Markdown'),
-        EditorView.contentAttributes.of({ 'aria-label': this.editorMode === 'area' ? 'Private slide area' : 'Slide Markdown editor', spellcheck: 'true' }),
+        placeholder('Write anything here. This area stays private.'),
+        EditorView.contentAttributes.of({ 'aria-label': 'Private slide area', spellcheck: 'true' }),
         keymap.of([
           { key: 'Mod-z', run: () => { this.undo(false); return true; } },
           { key: 'Mod-Shift-z', run: () => { this.undo(true); return true; } },
@@ -329,33 +355,14 @@ export class SlidesView extends TextFileView {
           ...searchKeymap, ...defaultKeymap, indentWithTab,
         ]),
         EditorView.updateListener.of(update => {
-          if (!update.docChanged || this.closed) return;
-          const selection = update.startState.selection.main;
-          this.history.record({ source: this.source, index: this.index, anchor: selection.anchor, head: selection.head, mode: this.editorMode, areaIndex: this.areaIndex }, true);
           const slide = this.deck.slides[this.index]!;
-          if (this.editorMode === 'area') {
-            const markdown = updateSlideArea(slide.markdown, this.areaIndex, update.state.sliceDoc(), this.deck.eol);
-            this.source = replaceSlide(this.source, slide, markdown);
-            this.deck = parseDeck(this.source);
-            this.requestSave();
-            this.scheduleRefresh();
-            return;
-          }
-          const markdown = update.state.sliceDoc();
-          const offset = slide.start + update.state.sliceDoc(0, update.state.selection.main.head).length;
+          if (!update.docChanged || this.closed || !slide.areas[this.areaIndex]) return;
+          const selection = update.startState.selection.main;
+          this.history.record({ source: this.source, index: this.index, anchor: selection.anchor, head: selection.head, areaIndex: this.areaIndex }, true);
+          const markdown = updateSlideArea(slide.markdown, this.areaIndex, update.state.sliceDoc(), this.deck.eol);
           this.source = replaceSlide(this.source, slide, markdown);
           this.deck = parseDeck(this.source);
-          const index = slideAt(this.deck, offset);
-          const changedStructure = this.deck.slides.length !== this.thumbnails.length || this.deck.slides[index]!.markdown !== markdown;
-          this.index = index;
-          this.requestSave();
-          if (changedStructure) queueMicrotask(() => {
-            if (this.closed) return;
-            const current = this.deck.slides[this.index]!;
-            const cursor = Math.max(0, offset - current.start);
-            this.loadEditor(cursor);
-            this.refresh(true);
-          });
+          this.commitChange();
           this.scheduleRefresh();
         }),
       ],
@@ -364,25 +371,23 @@ export class SlidesView extends TextFileView {
 
   private loadEditor(anchor = 0, head = anchor): void {
     const slide = this.deck.slides[this.index];
-    if (this.file && this.editorMode === 'area' && !slide?.areas[this.areaIndex]) this.editorMode = 'markdown';
-    this.updateEditorMode();
-    const content = this.editorMode === 'area' ? slide?.areas[this.areaIndex]?.content ?? '' : slide?.markdown ?? '';
+    this.areaIndex = Math.max(0, Math.min(this.areaIndex, (slide?.areas.length ?? 0) - 1));
+    this.updateEditorTabs();
+    const content = slide?.areas[this.areaIndex]?.content ?? '';
     if (this.editor) this.editor.setState(this.makeEditorState(content, anchor, head));
   }
 
-  private setEditorMode(mode: EditorMode, areaIndex = this.areaIndex): void {
-    if (mode === 'area' && !this.deck.slides[this.index]?.areas[areaIndex]) return;
-    if (this.editorMode === mode && (mode === 'markdown' || this.areaIndex === areaIndex)) return;
+  private selectArea(areaIndex: number): void {
+    if (!this.deck.slides[this.index]?.areas[areaIndex] || this.areaIndex === areaIndex) return;
     this.history.breakGroup();
-    this.editorMode = mode;
     this.areaIndex = areaIndex;
-    this.plugin.updateLayout({ editorMode: mode, areaIndex });
+    this.plugin.updateLayout({ areaIndex });
     this.loadEditor();
     this.editor?.requestMeasure();
-    this.modeTabs[mode === 'markdown' ? 0 : areaIndex + 1]?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    this.modeTabs[areaIndex]?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   }
 
-  private updateEditorMode(): void {
+  private updateEditorTabs(): void {
     if (!this.editorTabs) return;
     const names = this.deck.slides[this.index]?.areas.map((area, index) => area.name || `Area ${index + 1}`) ?? [];
     const signature = JSON.stringify(names);
@@ -390,25 +395,30 @@ export class SlidesView extends TextFileView {
       const focused = this.editorTabs.contains(this.contentEl.ownerDocument.activeElement);
       this.tabsSignature = signature;
       this.editorTabs.empty();
-      this.modeTabs = ['full slide source', ...names].map((name, index) => {
+      this.modeTabs = names.map((name, index) => {
         const tab = this.editorTabs.createEl('button', { cls: 'jss-editor-tab', text: name, attr: { role: 'tab', type: 'button' } });
-        tab.addEventListener('click', () => this.setEditorMode(index ? 'area' : 'markdown', Math.max(0, index - 1)));
+        tab.addEventListener('click', () => this.selectArea(index));
         return tab;
       });
-      if (focused) this.modeTabs[this.editorMode === 'markdown' ? 0 : this.areaIndex + 1]?.focus({ preventScroll: true });
+      if (focused) this.modeTabs[this.areaIndex]?.focus({ preventScroll: true });
     }
-    this.root.dataset.editorMode = this.editorMode;
-    const selected = this.editorMode === 'area' && names[this.areaIndex] !== undefined ? this.areaIndex + 1 : 0;
+    this.sourceHost.hidden = !names.length;
+    this.emptyAreas.hidden = !!names.length;
     this.modeTabs.forEach((tab, index) => {
-      tab.setAttribute('aria-selected', String(index === selected));
-      tab.tabIndex = index === selected ? 0 : -1;
+      tab.setAttribute('aria-selected', String(index === this.areaIndex));
+      tab.tabIndex = index === this.areaIndex ? 0 : -1;
     });
+  }
+
+  private commitChange(): void {
+    if (this.file) this.plugin.syncDocument(this.file, this.source, this);
+    this.savingView().requestSave();
   }
 
   private snapshot(): Snapshot {
     const selection = this.editor?.state.selection.main;
     return { source: this.source, index: this.index, anchor: selection?.anchor ?? 0,
-      head: selection?.head ?? 0, mode: this.editorMode, areaIndex: this.areaIndex };
+      head: selection?.head ?? 0, areaIndex: this.areaIndex };
   }
 
   private undo(redo: boolean): void {
@@ -417,10 +427,9 @@ export class SlidesView extends TextFileView {
     this.source = next.source;
     this.deck = parseDeck(this.source);
     this.index = Math.min(next.index, this.deck.slides.length - 1);
-    this.editorMode = next.mode ?? this.editorMode;
     this.areaIndex = next.areaIndex ?? this.areaIndex;
     this.loadEditor(next.anchor, next.head);
-    this.requestSave();
+    this.commitChange();
     this.refresh(true);
     this.editor?.focus();
   }
@@ -435,7 +444,7 @@ export class SlidesView extends TextFileView {
     this.deck = parseDeck(this.source);
     this.index = next.index;
     this.loadEditor();
-    this.requestSave();
+    this.commitChange();
     this.refresh(true);
     this.editor?.focus();
   }
@@ -448,7 +457,7 @@ export class SlidesView extends TextFileView {
     this.deck = parseDeck(this.source);
     this.index = next.index;
     this.loadEditor();
-    this.requestSave();
+    this.commitChange();
     this.refresh(true);
     this.thumbnails[this.index]?.button.scrollIntoView({ block: 'nearest' });
     this.thumbnails[this.index]?.button.focus({ preventScroll: true });
@@ -519,7 +528,7 @@ export class SlidesView extends TextFileView {
 
   selectSourceOffset(offset: number): void { this.select(slideAt(this.deck, offset)); }
 
-  focusEditor(): void { this.editor?.focus(); }
+  focusEditor(): void { if (this.deck.slides[this.index]?.areas[this.areaIndex]) this.editor?.focus(); }
 
   private scheduleRefresh(): void {
     const win = this.contentEl.ownerDocument.defaultView!;
@@ -533,7 +542,7 @@ export class SlidesView extends TextFileView {
     this.filename.setText(this.file?.basename ?? 'Presentation');
     this.counter.setText(`${this.index + 1} / ${this.deck.slides.length}`);
     this.sourceLabel.setText(`Slide ${this.index + 1}`);
-    this.updateEditorMode();
+    this.updateEditorTabs();
     if (rebuild || this.thumbnails.length !== this.deck.slides.length) this.buildThumbnails();
     this.thumbnails.forEach((thumb, i) => {
       thumb.button.setAttribute('aria-selected', String(i === this.index));
@@ -612,19 +621,6 @@ export class SlidesView extends TextFileView {
     await this.save();
     this.player = this.addChild(new Presentation(this, this.deck, this.index, () => { this.player = null; }));
     await this.player.start();
-  }
-
-  async openMarkdown(): Promise<void> {
-    await this.save();
-    const offset = this.deck.slides[this.index]?.start ?? 0;
-    if (this.file) {
-      await this.leaf.setViewState({ type: 'markdown', state: { file: this.file.path, mode: 'source' }, active: true });
-      if (this.leaf.view instanceof MarkdownView) {
-        const cursor = this.leaf.view.editor.offsetToPos(offset);
-        this.leaf.view.editor.setCursor(cursor);
-        this.leaf.view.editor.scrollIntoView({ from: cursor, to: cursor }, true);
-      }
-    }
   }
 
   async onClose(): Promise<void> {

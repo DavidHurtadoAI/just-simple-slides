@@ -2,11 +2,11 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { clampSize, DEFAULT_LAYOUT, readLayout, sidebarBounds, sourceBounds } from '../src/layout.ts';
 
-test('saved layout accepts both modes and rejects invalid or unbounded sizes', () => {
+test('saved layout retains area selection and ignores the retired source mode', () => {
   assert.deepEqual(readLayout(null), DEFAULT_LAYOUT);
   assert.deepEqual(readLayout({ sidebarWidth: Infinity, sourceRatio: 'large', editorMode: 'unknown' }), DEFAULT_LAYOUT);
-  assert.deepEqual(readLayout({ sidebarWidth: 290, sourceRatio: 0.6, editorMode: 'area', areaIndex: 3 }), { sidebarWidth: 290, sourceRatio: 0.6, editorMode: 'area', areaIndex: 3 });
-  assert.equal(readLayout({ editorMode: 'details' }).editorMode, 'area');
+  assert.deepEqual(readLayout({ sidebarWidth: 290, sourceRatio: 0.6, editorMode: 'area', areaIndex: 3 }), { sidebarWidth: 290, sourceRatio: 0.6, areaIndex: 3 });
+  assert.deepEqual(readLayout({ editorMode: 'markdown' }), DEFAULT_LAYOUT);
   for (const areaIndex of [-1, NaN, 2.5, '3', Infinity]) assert.equal(readLayout({ areaIndex }).areaIndex, 0);
   assert.equal(readLayout({ sidebarWidth: 10000 }).sidebarWidth, 520);
 });
