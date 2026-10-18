@@ -225,6 +225,7 @@ export class SlidesView extends TextFileView {
     this.panelObserver = new ResizeObserver(() => this.applyPanelSizes());
     this.panelObserver.observe(workspace);
     this.panelObserver.observe(main);
+    this.registerEvent(this.app.workspace.on('layout-change', () => this.onResize()));
     this.registerEvent(this.app.workspace.on('css-change', () => {
       this.surface.scheduleFit();
       for (const thumb of this.thumbnails) thumb.surface?.scheduleFit();
@@ -249,6 +250,22 @@ export class SlidesView extends TextFileView {
     this.loadEditor();
     this.applyPanelSizes();
     this.refresh(true);
+  }
+
+  onResize(): void {
+    if (!this.root || this.closed) return;
+    this.attachEditorDocument();
+    this.applyPanelSizes();
+  }
+
+  private attachEditorDocument(): void {
+    const editor = this.editor;
+    const document = this.contentEl.ownerDocument;
+    if (!editor || editor.root === document) return;
+    // Obsidian adopts this view's DOM when moving it between windows. CodeMirror
+    // must move its selection observers and editor styles to the new document too.
+    editor.setRoot(document);
+    editor.requestMeasure();
   }
 
   private button(host: HTMLElement, icon: string, label: string, action: () => void, text?: string, cls = ''): HTMLButtonElement {
@@ -371,6 +388,7 @@ export class SlidesView extends TextFileView {
   }
 
   private loadEditor(anchor = 0, head = anchor): void {
+    this.attachEditorDocument();
     const slide = this.deck.slides[this.index];
     this.areaIndex = Math.max(0, Math.min(this.areaIndex, (slide?.areas.length ?? 0) - 1));
     this.updateEditorTabs();
@@ -560,7 +578,10 @@ export class SlidesView extends TextFileView {
     editor.focus();
   }
 
-  focusEditor(): void { if (this.deck.slides[this.index]?.areas[this.areaIndex]) this.editor?.focus(); }
+  focusEditor(): void {
+    this.attachEditorDocument();
+    if (this.deck.slides[this.index]?.areas[this.areaIndex]) this.editor?.focus();
+  }
 
   private scheduleRefresh(): void {
     const win = this.contentEl.ownerDocument.defaultView!;

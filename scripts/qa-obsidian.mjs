@@ -35,7 +35,7 @@ const native=async()=>{
   await page.waitForFunction(()=>app.workspace.activeLeaf===jssNativeTestLeaf);await pause(50);
 };
 const slides=async()=>{
-  await page.evaluate(async()=>{await app.workspace.revealLeaf(jssSlidesTestLeaf);app.workspace.setActiveLeaf(jssSlidesTestLeaf,{focus:true});});
+  await page.evaluate(async()=>{await app.workspace.revealLeaf(jssSlidesTestLeaf);app.workspace.setActiveLeaf(jssSlidesTestLeaf,{focus:true});jssSlidesTestLeaf.view.focusEditor();});
   await page.waitForFunction(()=>app.workspace.activeLeaf===jssSlidesTestLeaf);await pause(50);
 };
 const setSource=async source=>{

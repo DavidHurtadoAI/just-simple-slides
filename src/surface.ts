@@ -104,6 +104,7 @@ export class SlideSurface extends Component {
 
   scheduleFit(): void {
     this.win.cancelAnimationFrame(this.frame);
+    this.win = this.viewport.ownerDocument.defaultView!;
     this.frame = this.win.requestAnimationFrame(() => this.fit());
   }
 
