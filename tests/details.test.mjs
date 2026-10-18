@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readSlideAreas, slideCallout, updateSlideArea } from '../src/details.ts';
-import { addSlide, parseDeck } from '../src/deck.ts';
+import { appendSlideNotes, readSlideAreas, slideCallout, updateSlideArea } from '../src/details.ts';
+import { addSlide, parseDeck, replaceSlide } from '../src/deck.ts';
 const values = source => readSlideAreas(source).map(({ name, content }) => ({ name, content }));
 
 test('callouts, names, bodies and any conventional fields are optional', () => {
@@ -107,4 +107,38 @@ test('editing at end of file works with or without a final newline', () => {
     const updated = updateSlideArea(source, 0, 'New.', eol);
     assert.equal(updated, '# Title' + eol + eol + '> [!slide] Notes' + eol + '> New.' + terminal);
   }
+});
+
+test('creating notes preserves the rest of the file and separates the next slide', () => {
+  for (const eol of ['\n', '\r\n', '\r']) for (const ending of ['', eol, eol + eol]) {
+    const source = ['---', 'title: Keep', '---', '', '# First', '', 'Body.  ', '', '---  ', '', '# Last'].join(eol) + ending;
+    const deck = parseDeck(source);
+    for (let index = 0; index < deck.slides.length; index++) {
+      const slide = deck.slides[index];
+      const result = replaceSlide(source, slide, appendSlideNotes(slide.markdown, eol));
+      const updated = parseDeck(result);
+      assert.equal(updated.slides.length, deck.slides.length);
+      assert.equal(updated.prefixEnd, deck.prefixEnd);
+      assert.ok(result.startsWith(source.slice(0, slide.end)));
+      assert.ok(result.endsWith(source.slice(slide.end)));
+      assert.deepEqual(values(updated.slides[index].markdown), [{ name: 'Slide notes', content: '' }]);
+      assert.ok(updated.slides[index].markdown.endsWith('>' + eol + eol));
+      assert.ok(updated.slides[index].markdown.startsWith(slide.markdown));
+      assert.equal(updateSlideArea(updated.slides[index].markdown, 0, 'My notes.', eol).includes('> My notes.'), true);
+    }
+  }
+  assert.deepEqual(values(appendSlideNotes('')), [{ name: 'Slide notes', content: '' }]);
+});
+
+test('creating notes never adds a second area when any private area already exists', () => {
+  for (const source of ['> [!slide]', '> [!SLIDE]- Custom\n> Existing.', '> [!tip]\n> > [!slide] Nested']) {
+    assert.equal(appendSlideNotes(source), source);
+  }
+});
+
+test('new notes stay separate from visible callouts and ignore literal code examples', () => {
+  const source = '```md\n> [!slide] Example\n```\n\n> [!tip] Visible\n> Keep this text.';
+  const result = appendSlideNotes(source);
+  assert.ok(result.startsWith(source + '\n\n'));
+  assert.deepEqual(values(result), [{ name: 'Slide notes', content: '' }]);
 });

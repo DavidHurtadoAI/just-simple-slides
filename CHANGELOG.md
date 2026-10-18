@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.2
+
+- Add **Create slide notes** to the lower panel when the selected slide has no private `[!slide]` areas. The button appends an empty `> [!slide] Slide notes` callout at the end of that slide, with a blank line before the following `---`, and focuses the notes editor so you can start writing immediately.
+- Keep existing slide content and other slides unchanged. Creation syncs to the native Markdown editor and other slide tabs, saves normally, and can be undone/redone as one operation. Existing private areas keep their usual selectors; the button does not add duplicates.
+
 ## 0.2.1
 
 - Add a **Normalize headings** toolbar button in the editor and slide sorter. This is a **file-wide edit**: applying it rewrites slide heading levels throughout the current Markdown file and saves the original note. Choose a presentation title, initially the file name, to create one independent H1 above the slides. Every slide title becomes H2 and its subtitle H3; later body headings stay below them.

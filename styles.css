@@ -64,7 +64,7 @@
 .jss-editor .cm-panels { background: var(--background-secondary); color: var(--text-normal); border-color: var(--background-modifier-border); }
 .jss-editor .cm-search input { background: var(--background-primary); color: var(--text-normal); }
 .jss-empty-areas { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 20px; color: var(--text-muted); font-family: var(--font-text); font-size: var(--font-text-size); text-align: center; }
-.jss-empty-areas > span:last-child { color: var(--text-faint); font-size: var(--font-ui-small); }
+.jss-empty-areas > span:last-of-type { color: var(--text-faint); font-size: var(--font-ui-small); }
 .jss-editor[hidden], .jss-empty-areas[hidden] { display: none; }
 .jss-hide-source .jss-source, .jss-hide-source .jss-divider-horizontal { display: none; }
 

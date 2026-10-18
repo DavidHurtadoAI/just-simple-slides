@@ -89,3 +89,10 @@ export function slideCallout(name = '', content = '', eol = '\n'): string {
   const header = `> [!slide]${name ? ` ${name}` : ''}`;
   return content ? header + eol + content.split(/\r\n|\n|\r/).map(line => line ? `> ${line}` : '>').join(eol) : header;
 }
+
+/** Append an empty private notes area, keeping existing Markdown untouched. */
+export function appendSlideNotes(markdown: string, eol = '\n'): string {
+  if (readSlideAreas(markdown).length) return markdown;
+  const gap = markdown ? (/[\r\n]$/.test(markdown) ? eol : eol + eol) : '';
+  return markdown + gap + slideCallout('Slide notes', '', eol) + eol + '>' + eol + eol;
+}
