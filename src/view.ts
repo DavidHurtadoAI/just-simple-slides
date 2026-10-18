@@ -680,6 +680,7 @@ export class SlidesView extends TextFileView {
   }
 
   private buildThumbnails(): void {
+    const focused = this.rail.contains(this.contentEl.ownerDocument.activeElement);
     this.clearDrag();
     this.thumbObserver?.disconnect();
     if (this.thumbOwner) this.removeChild(this.thumbOwner);
@@ -719,6 +720,7 @@ export class SlidesView extends TextFileView {
       }
     }, { root: this.rail, rootMargin: '180px' });
     for (const thumb of this.thumbnails) this.thumbObserver.observe(thumb.button);
+    if (focused) this.focusThumbnail();
   }
 
   private renderThumbnail(i: number): void {

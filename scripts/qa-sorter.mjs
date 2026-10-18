@@ -155,7 +155,7 @@ try {
   await page.evaluate(async () => { await app.workspace.revealLeaf(jssSorterLeaf); jssSorterLeaf.view.focusEditor(); });
   const external = fixture.replace('001. One clear idea', '001. Updated in native Markdown');
   await page.evaluate(source => jssSorterNative.view.editor.setValue(source), external);
-  check('native Markdown edits refresh the grid without leaving it', await data() === external && (await state()).sorter && await cards(page).nth(0).getAttribute('aria-label') === '1. 001. Updated in native Markdown');
+  check('native Markdown edits refresh the grid without losing mode or keyboard focus', await data() === external && (await state()).sorter && await cards(page).nth(0).getAttribute('aria-label') === '1. 001. Updated in native Markdown' && await page.evaluate(() => jssSorterLeaf.view.rail.contains(document.activeElement)));
   await reset();
   await page.evaluate(() => {
     const v = jssSorterLeaf.view, transfer = new DataTransfer();
