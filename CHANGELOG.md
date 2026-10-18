@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.1
+
+- Add a **Normalize headings** toolbar button in the editor and slide sorter. Choose a presentation title, initially the file name, to create one independent H1 above the slides. Every slide title becomes H2 and its subtitle H3; later body headings stay below them.
+- Preserve slide count, private areas, images, frontmatter, code examples, and selection. The separate presentation title is kept outside previews and the player and survives slide operations. Existing unmarked cover slides keep their meaning.
+- Undo/redo normalization as one change. Repeating it makes no changes, and editing the presentation title updates the existing H1 instead of adding another.
+- Prevent an older autosave from resetting newer edits or undo in other open slide tabs. Continue accepting genuine external file updates, including when only slide tabs are open.
+
 ## 0.2.0
 
 - Add **Slide sorter**, a full-pane grid of slide previews for arranging the whole presentation. Drag cards between rows; an insertion marker shows the destination, and the grid scrolls near its edges. Each move keeps the complete Markdown slide and private areas together and is one undo step.

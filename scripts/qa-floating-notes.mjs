@@ -2,6 +2,7 @@
 import { createRequire } from 'node:module';
 import { readFile, writeFile } from 'node:fs/promises';
 import assert from 'node:assert/strict';
+import { normalizeHeadings } from '../src/headings.ts';
 const { chromium } = createRequire(import.meta.url)('playwright');
 const version = JSON.parse(await readFile('manifest.json', 'utf8')).version;
 const browser = await chromium.connectOverCDP('http://127.0.0.1:9234');
@@ -10,7 +11,7 @@ const page = context.pages().find(p => p.url().includes('index.html'));
 const errors = [], checks = [], areas = [];
 context.on('page', p => p.on('pageerror', e => errors.push(e.message)));
 const check = (name, ok) => { assert.ok(ok, name); checks.push(name); console.log('PASS ' + name); };
-const fixture = Array.from({ length: 30 }, (_, i) => {
+const rawFixture = Array.from({ length: 30 }, (_, i) => {
   const names = i % 5 === 0 ? ['Notes'] : ['Notes', 'Cues', 'Development'];
   const bodies = names.map((name, area) => {
     const marker = `PRIVATE_${i + 1}_${area + 1}`;
@@ -20,6 +21,7 @@ const fixture = Array.from({ length: 30 }, (_, i) => {
   areas.push(...bodies.map((body, area) => ({ slide: i, area, body, marker: `PRIVATE_${i + 1}_${area + 1}`, end: `END_${i + 1}_${area + 1}` })));
   return `# Slide ${i + 1}\n\n![[slides-demo.svg]]\n\n` + names.map((name, a) => `> [!slide] ${name}\n` + bodies[a].split('\n').map(line => line ? `> ${line}` : '>').join('\n')).join('\n\n');
 }).join('\n\n---\n\n') + '\n';
+const fixture = process.env.QA_NORMALIZE_HEADINGS ? normalizeHeadings(rawFixture, 'Floating notes overview') : rawFixture;
 let popup;
 try {
   await page.evaluate(async fixture => {
@@ -96,7 +98,7 @@ try {
   await page.evaluate(async () => { await jssFloatingTestLeaf.view.save(); });
   check('floating navigation leaves the file unchanged', source === fixture && await readFile('qa/vault/Floating notes QA.md', 'utf8') === fixture);
   check('no floating editor runtime errors', errors.length === 0);
-  await writeFile('qa/floating-notes-results.json', JSON.stringify({ pass: true, version, checks, areaCount: areas.length, errors }, null, 2));
+  await writeFile('qa/floating-notes-results.json', JSON.stringify({ pass: true, normalized: !!process.env.QA_NORMALIZE_HEADINGS, version, checks, areaCount: areas.length, errors }, null, 2));
 } catch (error) {
   if (popup && !popup.isClosed()) await popup.screenshot({ path: 'qa/floating-notes-failure.png' });
   await writeFile('qa/floating-notes-results.json', JSON.stringify({ pass: false, error: String(error), checks, errors }, null, 2));

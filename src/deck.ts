@@ -1,4 +1,5 @@
 import { readSlideAreas, slideCallout, type SlideArea } from './details.ts';
+import { readPresentationTitle, type PresentationTitle } from './presentation-title.ts';
 
 export interface Slide {
   start: number;
@@ -7,13 +8,13 @@ export interface Slide {
   title: string;
   areas: SlideArea[];
 }
-export interface Deck { slides: Slide[]; eol: string; prefixEnd: number }
+export interface Deck { slides: Slide[]; eol: string; prefixEnd: number; presentation?: PresentationTitle }
 
 /** Offsets always refer to the original string, including its original newlines. */
 export function parseDeck(source: string): Deck {
   const lines = [...source.matchAll(/[^\r\n]*(?:\r\n|\n|\r|$)/g)].filter(m => m[0].length);
   const eol = source.match(/\r\n|\n|\r/)?.[0] ?? '\n';
-  let prefixEnd = 0;
+  let prefixEnd = source.startsWith('\uFEFF') ? 1 : 0;
   if (lines[0]?.[0].replace(/[\r\n]+$/, '').replace(/^\uFEFF/, '').trim() === '---') {
     for (let i = 1; i < lines.length; i++) {
       if (/^(---|\.\.\.)\s*$/.test(lines[i]![0].replace(/[\r\n]+$/, ''))) {
@@ -22,6 +23,8 @@ export function parseDeck(source: string): Deck {
       }
     }
   }
+  const presentation = readPresentationTitle(source, prefixEnd);
+  if (presentation) prefixEnd = presentation.end;
   const slides: Slide[] = [];
   let start = prefixEnd;
   let fence = '';
@@ -46,7 +49,7 @@ export function parseDeck(source: string): Deck {
     for (const token of line.matchAll(/<!--|-->/g)) inComment = token[0] === '<!--';
   }
   slides.push(makeSlide(source, start, source.length, slides.length));
-  return { slides, eol, prefixEnd };
+  return { slides, eol, prefixEnd, presentation };
 }
 
 function makeSlide(source: string, start: number, end: number, index: number): Slide {

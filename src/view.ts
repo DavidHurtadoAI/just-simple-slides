@@ -10,6 +10,8 @@ import { updateSlideArea } from './details';
 import { clampSize, DEFAULT_LAYOUT, sidebarBounds, sourceBounds } from './layout';
 import { PLUGIN_ICON } from './icon';
 import { thumbnailBoundary, thumbnailColumns } from './sorter';
+import { normalizeHeadings } from './headings';
+import { HeadingModal } from './heading-modal';
 
 export const VIEW_TYPE = 'just-simple-slides';
 interface Thumbnail { button: HTMLButtonElement; caption: HTMLElement; surface: SlideSurface | null; markdown?: string; visible: boolean }
@@ -107,12 +109,21 @@ export class SlidesView extends TextFileView {
   }
 
   setViewData(data: string, clear: boolean): void {
+    if (!clear && this.file) {
+      const writer = this.savingView();
+      // A previous autosave can finish after a newer edit or undo. Other views
+      // follow the save owner's live buffer, rather than that obsolete disk echo.
+      if (writer !== this && writer.getViewData().replace(/\r\n|\r/g, '\n') !== data.replace(/\r\n|\r/g, '\n')) return;
+    }
     if (clear || data !== this.source) {
       this.history = new DeckHistory();
       this.source = data;
       this.deck = parseDeck(data);
       this.index = clear ? 0 : Math.min(this.index, this.deck.slides.length - 1);
       if (this.root) { this.loadEditor(); this.refresh(true); }
+      // With no native editor, the first slide tab also distributes real disk
+      // reloads to followers that may have received the file event before it.
+      if (!clear && this.file && this.savingView() === this) this.plugin.syncDocument(this.file, data, this);
     }
   }
   clear(): void {
@@ -137,6 +148,9 @@ export class SlidesView extends TextFileView {
     this.sorterButton = this.button(actions, 'layout-grid', 'Toggle slide sorter', () => this.setSorter(!this.sorter), 'Slide sorter');
     this.sorterButton.setAttribute('aria-pressed', 'false');
     this.button(actions, 'file-text', 'Edit selected slide in Markdown', () => { void this.editSource(); }, 'Edit source');
+    this.button(actions, 'heading', 'Normalize headings', () => {
+      new HeadingModal(this.app, this.contentEl.ownerDocument, this.deck.presentation?.title ?? this.file?.basename ?? '', title => this.normalizeHeadings(title)).open();
+    });
     this.button(actions, 'panel-bottom', 'Toggle slide editor', () => {
       this.root.toggleClass('jss-hide-source', !this.root.hasClass('jss-hide-source'));
       this.surface.scheduleFit();
@@ -532,6 +546,21 @@ export class SlidesView extends TextFileView {
     this.commitChange();
     this.refresh(true);
     this.focusEditor();
+  }
+
+  private normalizeHeadings(title: string): void {
+    if (this.closed || !this.file) return;
+    const source = normalizeHeadings(this.source, title);
+    if (source === this.source) { new Notice('Headings already normalized.'); return; }
+    const selection = this.editor?.state.selection.main;
+    this.history.record(this.snapshot());
+    this.source = source;
+    this.deck = parseDeck(source);
+    this.loadEditor(selection?.anchor, selection?.head);
+    this.commitChange();
+    this.refresh(true);
+    this.focusEditor();
+    new Notice('Headings normalized. Undo with Ctrl/Cmd+Z.');
   }
 
   private reorderSlide(from: number, target: number): void {

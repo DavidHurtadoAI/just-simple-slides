@@ -40,6 +40,36 @@ Use **Left/Right** to select adjacent slides, **Up/Down** to move by a visible g
 
 ![Slide sorter with a responsive grid, selected slide, and thumbnail size control](assets/sorter.png)
 
+## Normalize headings
+
+Click the **Normalize headings** button (the heading icon in the toolbar) to give the Markdown a consistent outline. Set **Presentation title**, initially the file name, and apply:
+
+- One independent **H1** for the presentation, outside the slides.
+- **H2** for the first heading in every slide.
+- **H3** for its second heading, when present.
+- Later body headings use **H4–H6**, keeping their relative depth where Markdown's six levels allow it.
+
+The button works in both the editor and slide sorter. It preserves the slide count, selected slide, private-area selection, notes, images, and frontmatter. Slides without headings get no invented title. Private areas, quoted/nested headings, code examples, HTML blocks, math and comments stay unchanged. Setext headings are converted to `#` syntax. **Ctrl/Cmd+Z** undoes the entire operation; repeating it does not add another title or another undo step.
+
+The independent title is ordinary Markdown, identified by a small HTML comment so an existing title-only cover is never mistaken for metadata:
+
+```md
+<!-- just-simple-slides:title -->
+# My presentation
+
+## First slide
+
+### Optional subtitle
+
+Slide content.
+
+---
+
+## Next slide
+```
+
+Keep the marker above the presentation heading at the start of the note, after any frontmatter, when editing it in the native source. Blank lines are allowed. The title appears in the Markdown outline and stays outside slide previews and presentation mode. Reordering, adding, duplicating, and deleting slides preserve it. This structure is optional: notes without it keep working unchanged, at any heading levels.
+
 ## Markdown format
 
 ```md
@@ -134,6 +164,8 @@ node scripts/install.mjs /path/to/vault
 ```
 
 Uses the [Obsidian TextFileView API](https://github.com/obsidianmd/obsidian-api) for file lifecycle, CodeMirror for private callout bodies, and [Obsidian's Markdown renderer and component lifecycle](https://docs.obsidian.md/plugins/guides/lifecycle-management) for previews. While the native Markdown editor is open, it owns saving and receives minimal text replacements that preserve its undo history. All open slide tabs share the current content. The same measured layout renders the main preview, visible thumbnails, and player. Thumbnails render lazily. No web service, telemetry, presentation framework, or runtime download is required.
+
+Heading normalization uses the bundled [Lezer Markdown parser](https://github.com/lezer-parser/markdown) to identify headings without rewriting nested content. Its license and those of its bundled dependencies are included in `main.js` and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 The public Obsidian API does not provide an embeddable native editor restricted to a document fragment. The private-area editor uses the same CodeMirror engine and Obsidian typography; full native Live Preview, autocomplete, and Markdown editing remain available in the original note tab. Slide transitions, export, and a separate presenter window are outside this first version. Arbitrary third-party interactive embeds may impose their own layout or focus behavior.
 

@@ -3,6 +3,7 @@ import { createRequire } from 'node:module';
 import { readFile, writeFile } from 'node:fs/promises';
 import assert from 'node:assert/strict';
 import { parseDeck, moveSlideTo } from '../src/deck.ts';
+import { normalizeHeadings } from '../src/headings.ts';
 const { chromium } = createRequire(import.meta.url)('playwright');
 const browser = await chromium.connectOverCDP('http://127.0.0.1:9234');
 const context = browser.contexts()[0];
@@ -13,7 +14,8 @@ context.on('page', p => p.on('pageerror', e => errors.push(e.message)));
 const check = (name, ok) => { assert.ok(ok, name); checks.push(name); console.log('PASS ' + name); };
 const topics = ['One clear idea', 'Keep the context', 'Give images room', 'A little more detail', 'Make the point', 'Ready for the next step'];
 const bodies = ['', '- Ordinary Markdown\n- A visual overview\n- Your Obsidian theme\n\n![[slides-demo.svg]]', '![[slides-demo.svg]]', '| Content | Design |\n| --- | --- |\n| Markdown | Your theme |\n| Private notes | Simple layouts |', '> [!tip] Keep it simple\n> One point per slide.', '1. Write your ideas.\n2. Arrange the story.\n3. Present.'];
-const fixture = '---\ntitle: Slide sorter QA\ntags: [slides, test]\n---\n\n' + Array.from({ length: 102 }, (_, i) => `## ${String(i + 1).padStart(3, '0')}. ${topics[i % 6]}\n\n### Section ${Math.floor(i / 6) + 1}\n\n${bodies[i % 6]}\n\n> [!slide] Notes\n> PRIVATE_${i + 1}\n>\n> Speaker notes travel with this slide.\n\n> [!slide] Cues\n> PRIVATE_CUE_${i + 1}\n`).join('\n---\n\n');
+const rawFixture = '---\ntitle: Slide sorter QA\ntags: [slides, test]\n---\n\n' + Array.from({ length: 102 }, (_, i) => `## ${String(i + 1).padStart(3, '0')}. ${topics[i % 6]}\n\n### Section ${Math.floor(i / 6) + 1}\n\n${bodies[i % 6]}\n\n> [!slide] Notes\n> PRIVATE_${i + 1}\n>\n> Speaker notes travel with this slide.\n\n> [!slide] Cues\n> PRIVATE_CUE_${i + 1}\n`).join('\n---\n\n');
+const fixture = process.env.QA_NORMALIZE_HEADINGS ? normalizeHeadings(rawFixture, 'Sorter overview') : rawFixture;
 const note = 'Slide sorter QA.md';
 const data = () => page.evaluate(() => jssSorterLeaf.view.getViewData());
 const selected = () => page.evaluate(() => jssSorterLeaf.view.index);
@@ -192,7 +194,7 @@ try {
   await page.evaluate(async () => { await jssSorterLeaf.view.save(); });
   check('the final saved file is byte-for-byte intact', await readFile(`qa/vault/${note}`, 'utf8') === fixture);
   check('no sorter runtime errors', errors.length === 0);
-  await writeFile('qa/sorter-results.json', JSON.stringify({ pass: true, checks, columns, largeColumns, smallColumns, errors }, null, 2));
+  await writeFile('qa/sorter-results.json', JSON.stringify({ pass: true, normalized: !!process.env.QA_NORMALIZE_HEADINGS, checks, columns, largeColumns, smallColumns, errors }, null, 2));
 } catch (error) {
   const active = popup && !popup.isClosed() ? popup : page;
   await active.screenshot({ path: 'qa/sorter-failure.png' });
