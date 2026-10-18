@@ -10,7 +10,7 @@ Markdown is the perfect format for content: plain text, easy to edit, easy to re
 
 **Just Simple Slides fills that gap.** See the slides, reorder the story, and keep private notes below the preview. Edit your content in Obsidian's native Markdown editor, which stays open in its own tab. Both views share the same ordinary Markdown file. The layout adjusts automatically and follows your Obsidian theme.
 
-[Download the latest release](https://github.com/DavidHurtadoAI/just-simple-slides/releases/latest) · [Installation](#installation) · [Markdown format](#markdown-format)
+[Download the latest release](https://github.com/DavidHurtadoAI/just-simple-slides/releases/latest) · [Installation](#installation) · [Slide sorter](#see-the-whole-presentation) · [Normalize headings](#normalize-headings) · [Markdown format](#markdown-format)
 
 ![Native Markdown and Just Simple Slides tabs, with thumbnails, automatic text-and-image layout, and private notes](assets/editor.png)
 
@@ -42,14 +42,24 @@ Use **Left/Right** to select adjacent slides, **Up/Down** to move by a visible g
 
 ## Normalize headings
 
-Click the **Normalize headings** button (the heading icon in the toolbar) to give the Markdown a consistent outline. Set **Presentation title**, initially the file name, and apply:
+**This is a file-wide editing command.** Applying it rewrites the heading levels across **every slide in the current Markdown file**, regardless of which slide is selected. It also adds or updates a separate presentation title. The changes are saved to your original note and appear in Obsidian's native Markdown editor.
+
+1. Click **Normalize headings**, the **H** icon in the toolbar, from either the slide editor or the slide sorter.
+2. Set **Presentation title**. The dialog proposes the existing presentation title, or the file name when there is none.
+3. Click **Normalize headings** in the dialog to apply the changes to the whole file. **Cancel** leaves the file unchanged.
+
+![Normalize headings dialog with the presentation title field and apply button, opened from the slide editor](assets/normalize-headings.png)
+
+The resulting outline uses:
 
 - One independent **H1** for the presentation, outside the slides.
 - **H2** for the first heading in every slide.
 - **H3** for its second heading, when present.
 - Later body headings use **H4–H6**, keeping their relative depth where Markdown's six levels allow it.
 
-The button works in both the editor and slide sorter. It preserves the slide count, selected slide, private-area selection, notes, images, and frontmatter. Slides without headings get no invented title. Private areas, quoted/nested headings, code examples, HTML blocks, math and comments stay unchanged. Setext headings are converted to `#` syntax. **Ctrl/Cmd+Z** undoes the entire operation; repeating it does not add another title or another undo step.
+**Ctrl/Cmd+Z undoes the entire operation in one step**; redo works too. Repeating normalization with the same title makes no further changes or extra undo step. Applying a different presentation title updates the existing H1.
+
+Normalization targets top-level slide headings. Private `[!slide]` areas, headings nested in quotes or lists, code examples, HTML blocks, math, comments, images, and frontmatter stay unchanged. The slide count, selected slide, and private-area selection are preserved. Slides without headings get no invented title. Setext headings (underlined with `=` or `-`) are converted to `#` syntax.
 
 The independent title is ordinary Markdown, identified by a small HTML comment so an existing title-only cover is never mistaken for metadata:
 
