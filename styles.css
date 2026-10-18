@@ -138,6 +138,8 @@
 .jss-player-controls:hover, .jss-player-controls:focus-within { opacity: 1; }
 .jss-player-counter { min-width: 64px; text-align: center; font-size: 12px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
 .jss-player-controls button:disabled { opacity: 0.3; cursor: default; }
+.jss-player-progress { position: absolute; bottom: 0; left: 0; width: 100%; height: 2px; background: var(--background-modifier-border); opacity: 0.45; pointer-events: none; }
+.jss-player-progress-fill { width: 100%; height: 100%; background: var(--interactive-accent); transform: scaleX(var(--jss-progress, 0)); transform-origin: left; transition: transform 700ms ease-in-out; }
 @media (max-width: 700px) {
   .jss-toolbar { padding: 8px 10px; gap: 6px; }
   .jss-rail { padding: 6px; }
@@ -161,5 +163,5 @@
   .jss-sorter-zoom > span { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .jss-player-controls { transition: none; }
+  .jss-player-controls, .jss-player-progress-fill { transition: none; }
 }

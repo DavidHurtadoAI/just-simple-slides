@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.6
+
+- Add a subtle **2px progress bar** at the bottom of presentation mode. The current slide's position fills the bar smoothly, reaching 100% on the last slide and moving back when navigating to earlier slides. It uses the theme accent at low opacity, stays visible while controls fade, and respects system reduced motion.
+- Expose slide progress to screen readers without adding a focus stop or blocking presentation controls. No new settings or changes to the Markdown.
+
 ## 0.2.5
 
 - Use a **0.70-second Fade** when changing slides in presentation mode. The incoming slide dissolves over the previous one with the current Obsidian theme. Fade is the only transition and has no settings; the first slide appears immediately and reduced motion follows the system preference.

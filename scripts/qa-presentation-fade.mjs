@@ -22,7 +22,7 @@ const fade = async (key, title) => {
   await target.keyboard.press(key);
   await target.waitForFunction(title => {
     const root = document.querySelector('.jss-presentation');
-    return root?.getAnimations({ subtree: true }).length === 1 && root.lastElementChild && root.querySelector('.jss-slide:not([inert]) .jss-title')?.textContent === title;
+    return root?.querySelector('.jss-player-stage').getAnimations({ subtree: true }).length === 1 && root.querySelector('.jss-slide:not([inert]) .jss-title')?.textContent === title;
   }, title);
 };
 const sample = () => target.evaluate(() => {
