@@ -98,7 +98,7 @@ export default class JustSimpleSlides extends Plugin {
     await this.app.workspace.revealLeaf(leaf);
     if (offset !== null && leaf.view instanceof SlidesView) leaf.view.selectSourceOffset(offset);
     if (present && leaf.view instanceof SlidesView) await leaf.view.present();
-    else if (leaf.view instanceof SlidesView) leaf.view.focusEditor();
+    else if (leaf.view instanceof SlidesView) leaf.view.focusPreview();
   }
 
   private async create(): Promise<void> {

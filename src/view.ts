@@ -247,7 +247,11 @@ export class SlidesView extends TextFileView {
     const stageHeader = main.createDiv({ cls: 'jss-stage-header' });
     stageHeader.createSpan({ text: 'Slide preview' });
     this.density = stageHeader.createSpan({ cls: 'jss-density', attr: { role: 'status' } });
-    this.stage = main.createDiv({ cls: 'jss-stage' });
+    this.stage = main.createDiv({ cls: 'jss-stage', attr: { tabindex: '0', role: 'region', 'aria-label': 'Slide preview' } });
+    this.registerDomEvent(this.stage, 'pointerdown', event => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('a, button, input, textarea, select, audio, video, iframe, [contenteditable]:not([contenteditable="false"])')) this.focusPreview();
+    });
     this.surface = this.addChild(new SlideSurface(this.app, this.stage, 'Current slide preview'));
     this.horizontalDivider = this.createDivider(main, 'horizontal');
     const source = this.sourcePanel = main.createDiv({ cls: 'jss-source' });
@@ -282,6 +286,17 @@ export class SlidesView extends TextFileView {
       this.editor?.requestMeasure();
     }));
     this.registerDomEvent(this.root, 'keydown', event => {
+      const direction = ['ArrowRight', 'ArrowDown'].includes(event.key) ? 1 : ['ArrowLeft', 'ArrowUp'].includes(event.key) ? -1 : 0;
+      if (direction && !this.sorter && !this.player && !event.defaultPrevented && !event.isComposing
+        && !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey) {
+        const target = event.target as HTMLElement;
+        if (target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"]), .cm-editor, audio, video, iframe, [role="textbox"], [role="combobox"], [role="slider"], [role="spinbutton"], [role="separator"], [role="tablist"], [role="listbox"], [role="menu"], [role="tree"], [role="grid"]')) return;
+        event.preventDefault();
+        event.stopPropagation();
+        this.select(this.index + direction);
+        this.focusPreview();
+        return;
+      }
       if (event.key === 'Escape' && this.sorter && this.draggedIndex === null) {
         event.preventDefault();
         event.stopPropagation();
@@ -340,7 +355,7 @@ export class SlidesView extends TextFileView {
     else {
       this.applyPanelSizes();
       this.thumbnails[this.index]?.button.scrollIntoView({ block: 'nearest' });
-      this.focusEditor();
+      this.focusPreview();
     }
     // Reused canvases need their new scale before this layout is first painted.
     this.fitViewports();
@@ -696,6 +711,12 @@ export class SlidesView extends TextFileView {
     editor.setCursor(cursor);
     editor.scrollIntoView({ from: cursor, to: cursor }, true);
     editor.focus();
+  }
+
+  focusPreview(): void {
+    this.attachEditorDocument();
+    if (this.sorter) this.focusThumbnail();
+    else this.stage?.focus({ preventScroll: true });
   }
 
   focusEditor(): void {

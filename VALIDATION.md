@@ -1,6 +1,16 @@
-# Local validation — 0.2.3
+# Local validation — 0.2.4
 
 Checked on 18 October 2026, Windows desktop, in the actual Obsidian application with an isolated vault and application profile.
+
+For 0.2.4, `npm run check` passed with **53 unit tests**, zero lint warnings, CSS compatibility checks, strict TypeScript, production build, and version/asset packaging.
+
+`scripts/qa-arrow-navigation.mjs` passed **29 real-app checks**. Checked initial preview focus with existing private notes, all four arrows, exactly one slide per key event, first/last boundaries, held-key repeat, toolbar-to-preview navigation, and clicking the preview after note editing. Checked horizontal/vertical note cursor movement, Shift selection, a native text input, private-area selectors, divider resizing, existing thumbnail arrows and modified reordering, grid-row navigation, return-from-sorter focus, cross-slide note undo, modified/composing events, and floating navigation/editing. Navigation preserves native Markdown and the saved file byte for byte. No runtime errors.
+
+The existing editor/presentation suite also passed all **99 checks**. Its note-editing test now explicitly clicks the notes editor after opening a second slide tab, matching the new default focus on the preview.
+
+The existing sorter suite passed all **40 checks** with the independent presentation title enabled, including grid navigation/reordering, drag-and-drop, notes editing, undo, and floating windows. No runtime errors.
+
+The results below describe the 0.2.3 baseline unless a newer rerun is specified.
 
 For 0.2.3, `npm run check` passed with **53 unit tests**, zero lint warnings, CSS compatibility checks, strict TypeScript, production build, and version/asset packaging.
 
