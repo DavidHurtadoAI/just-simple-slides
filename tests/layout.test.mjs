@@ -5,10 +5,17 @@ import { clampSize, DEFAULT_LAYOUT, readLayout, sidebarBounds, sourceBounds } fr
 test('saved layout retains area selection and ignores the retired source mode', () => {
   assert.deepEqual(readLayout(null), DEFAULT_LAYOUT);
   assert.deepEqual(readLayout({ sidebarWidth: Infinity, sourceRatio: 'large', editorMode: 'unknown' }), DEFAULT_LAYOUT);
-  assert.deepEqual(readLayout({ sidebarWidth: 290, sourceRatio: 0.6, editorMode: 'area', areaIndex: 3 }), { sidebarWidth: 290, sourceRatio: 0.6, areaIndex: 3 });
+  assert.deepEqual(readLayout({ sidebarWidth: 290, sourceRatio: 0.6, editorMode: 'area', areaIndex: 3 }), { sidebarWidth: 290, sourceRatio: 0.6, areaIndex: 3, sorterSize: 220 });
   assert.deepEqual(readLayout({ editorMode: 'markdown' }), DEFAULT_LAYOUT);
   for (const areaIndex of [-1, NaN, 2.5, '3', Infinity]) assert.equal(readLayout({ areaIndex }).areaIndex, 0);
   assert.equal(readLayout({ sidebarWidth: 10000 }).sidebarWidth, 520);
+});
+
+test('sorter thumbnail size survives old settings and rejects invalid values', () => {
+  assert.equal(readLayout({ sorterSize: 300 }).sorterSize, 300);
+  assert.equal(readLayout({ sorterSize: 0 }).sorterSize, 140);
+  assert.equal(readLayout({ sorterSize: 10000 }).sorterSize, 360);
+  for (const sorterSize of [NaN, Infinity, '220', null]) assert.equal(readLayout({ sorterSize }).sorterSize, 220);
 });
 
 test('sidebar resizing leaves usable preview space in narrow and desktop panes', () => {

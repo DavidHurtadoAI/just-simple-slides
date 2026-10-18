@@ -9,6 +9,7 @@ import { SlideSurface } from './surface';
 import { updateSlideArea } from './details';
 import { clampSize, DEFAULT_LAYOUT, sidebarBounds, sourceBounds } from './layout';
 import { PLUGIN_ICON } from './icon';
+import { thumbnailBoundary, thumbnailColumns } from './sorter';
 
 export const VIEW_TYPE = 'just-simple-slides';
 interface Thumbnail { button: HTMLButtonElement; caption: HTMLElement; surface: SlideSurface | null; markdown?: string; visible: boolean }
@@ -36,6 +37,8 @@ export class SlidesView extends TextFileView {
   private counter!: HTMLElement;
   private filename!: HTMLElement;
   private density!: HTMLElement;
+  private sorter = false;
+  private sorterButton!: HTMLButtonElement;
   private editor: EditorView | null = null;
   private surface!: SlideSurface;
   private deck: Deck = parseDeck('');
@@ -53,7 +56,9 @@ export class SlidesView extends TextFileView {
   private dragSource: string | null = null;
   private dropBoundary: number | null = null;
   private dragY: number | null = null;
+  private dragX: number | null = null;
   private dragFrame = 0;
+  private dragWindow: Window | null = null;
   // TextFileView.data belongs to Obsidian's saved-file lifecycle. Keep the editable
   // buffer separate: core assigns data before calling setViewData on external reloads.
   private source = '';
@@ -129,17 +134,20 @@ export class SlidesView extends TextFileView {
     this.filename = identity.createSpan({ cls: 'jss-filename' });
     this.counter = identity.createSpan({ cls: 'jss-counter' });
     const actions = toolbar.createDiv({ cls: 'jss-toolbar-actions' });
+    this.sorterButton = this.button(actions, 'layout-grid', 'Toggle slide sorter', () => this.setSorter(!this.sorter), 'Slide sorter');
+    this.sorterButton.setAttribute('aria-pressed', 'false');
     this.button(actions, 'file-text', 'Edit selected slide in Markdown', () => { void this.editSource(); }, 'Edit source');
     this.button(actions, 'panel-bottom', 'Toggle slide editor', () => {
       this.root.toggleClass('jss-hide-source', !this.root.hasClass('jss-hide-source'));
       this.surface.scheduleFit();
       this.editor?.requestMeasure();
-    });
+    }).addClass('jss-source-toggle');
     this.button(actions, PLUGIN_ICON, 'Present from this slide (F5)', () => { void this.present(); }, 'Present', 'mod-cta');
     const workspace = this.workspace = this.root.createDiv({ cls: 'jss-workspace' });
     const sidebar = this.sidebar = workspace.createDiv({ cls: 'jss-sidebar' });
     const railHeader = sidebar.createDiv({ cls: 'jss-rail-header' });
     railHeader.createSpan({ text: 'Slides' });
+    railHeader.createSpan({ cls: 'jss-sorter-hint', text: 'Drag to reorder · Double-click to edit' });
     this.button(railHeader, 'plus', 'Add slide after selection', () => this.perform('add'));
     this.rail = sidebar.createDiv({ cls: 'jss-rail', attr: { role: 'listbox', 'aria-label': 'Slides', tabindex: '0' } });
     this.registerDomEvent(this.rail, 'dragover', event => {
@@ -148,7 +156,8 @@ export class SlidesView extends TextFileView {
       event.stopPropagation();
       if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
       this.dragY = event.clientY;
-      this.showDropPosition(event.clientY);
+      this.dragX = event.clientX;
+      this.showDropPosition(event.clientX, event.clientY);
       this.scrollDuringDrag();
     });
     this.registerDomEvent(this.rail, 'dragleave', event => {
@@ -163,7 +172,7 @@ export class SlidesView extends TextFileView {
       event.stopPropagation();
       const from = this.draggedIndex;
       const valid = this.dragSource === this.source;
-      this.showDropPosition(event.clientY);
+      this.showDropPosition(event.clientX, event.clientY);
       const boundary = this.dropBoundary;
       this.clearDrag();
       if (!valid || boundary === null) return;
@@ -181,11 +190,22 @@ export class SlidesView extends TextFileView {
       }, { capture: true });
     }
     this.registerDomEvent(this.rail, 'keydown', event => {
+      if (this.sorter && (event.key === 'Enter' || event.key === 'Escape')) {
+        event.preventDefault();
+        event.stopPropagation();
+        this.setSorter(false);
+        return;
+      }
       const next = ['ArrowDown', 'ArrowRight'].includes(event.key);
       const previous = ['ArrowUp', 'ArrowLeft'].includes(event.key);
       if (next || previous || event.key === 'Home' || event.key === 'End') {
         event.preventDefault();
-        this.select(event.key === 'Home' ? 0 : event.key === 'End' ? this.deck.slides.length - 1 : this.index + (next ? 1 : -1));
+        event.stopPropagation();
+        const columns = this.sorter && ['ArrowDown', 'ArrowUp'].includes(event.key)
+          ? thumbnailColumns(this.thumbnails.map(thumb => thumb.button.getBoundingClientRect())) : 1;
+        const target = event.key === 'Home' ? 0 : event.key === 'End' ? this.deck.slides.length - 1 : this.index + (next ? columns : -columns);
+        if (event.ctrlKey || event.metaKey) this.reorderSlide(this.index, Math.max(0, Math.min(target, this.deck.slides.length - 1)));
+        else this.select(target);
         this.thumbnails[this.index]?.button.focus();
       }
     });
@@ -194,6 +214,19 @@ export class SlidesView extends TextFileView {
     this.button(railFooter, 'arrow-up', 'Move slide up', () => this.perform('up'));
     this.button(railFooter, 'arrow-down', 'Move slide down', () => this.perform('down'));
     this.button(railFooter, 'trash-2', 'Delete slide (undo with Ctrl/Cmd+Z)', () => this.perform('delete'));
+    const zoom = railFooter.createEl('label', { cls: 'jss-sorter-zoom' });
+    zoom.createSpan({ text: 'Slide size' });
+    const slider = zoom.createEl('input', { attr: { type: 'range', min: '140', max: '360', step: '20', 'aria-label': 'Slide size' } });
+    slider.value = String(this.plugin.layout.sorterSize);
+    this.root.style.setProperty('--jss-sorter-size', `${this.plugin.layout.sorterSize}px`);
+    this.registerDomEvent(slider, 'input', () => {
+      this.clearDrag();
+      this.root.style.setProperty('--jss-sorter-size', `${slider.value}px`);
+    });
+    this.registerDomEvent(slider, 'change', () => {
+      this.plugin.updateLayout({ sorterSize: Number(slider.value) });
+      this.thumbnails[this.index]?.button.scrollIntoView({ block: 'nearest' });
+    });
     this.verticalDivider = this.createDivider(workspace, 'vertical');
     const main = this.main = workspace.createDiv({ cls: 'jss-main' });
     const stageHeader = main.createDiv({ cls: 'jss-stage-header' });
@@ -233,6 +266,12 @@ export class SlidesView extends TextFileView {
       this.editor?.requestMeasure();
     }));
     this.registerDomEvent(this.root, 'keydown', event => {
+      if (event.key === 'Escape' && this.sorter && this.draggedIndex === null) {
+        event.preventDefault();
+        event.stopPropagation();
+        this.setSorter(false);
+        return;
+      }
       if (event.key === 'F5') {
         event.preventDefault();
         event.stopPropagation();
@@ -266,6 +305,33 @@ export class SlidesView extends TextFileView {
     // must move its selection observers and editor styles to the new document too.
     editor.setRoot(document);
     editor.requestMeasure();
+  }
+
+  private setSorter(enabled: boolean): void {
+    if (this.sorter === enabled) return;
+    this.clearDrag();
+    this.history.breakGroup();
+    this.sorter = enabled;
+    this.root.toggleClass('jss-sorter', enabled);
+    this.sorterButton.setAttribute('aria-pressed', String(enabled));
+    this.sorterButton.lastElementChild?.setText(enabled ? 'Slide editor' : 'Slide sorter');
+    setIcon(this.sorterButton.firstElementChild as HTMLElement, enabled ? 'panels-top-left' : 'layout-grid');
+    this.rail.setAttribute('aria-label', enabled ? 'Slide sorter' : 'Slides');
+    this.main.hidden = enabled;
+    this.verticalDivider.hidden = enabled;
+    if (enabled) this.focusThumbnail();
+    else {
+      this.applyPanelSizes();
+      this.surface.scheduleFit();
+      this.thumbnails[this.index]?.button.scrollIntoView({ block: 'nearest' });
+      this.focusEditor();
+    }
+  }
+
+  private focusThumbnail(): void {
+    const button = this.thumbnails[this.index]?.button;
+    button?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    button?.focus({ preventScroll: true });
   }
 
   private button(host: HTMLElement, icon: string, label: string, action: () => void, text?: string, cls = ''): HTMLButtonElement {
@@ -338,7 +404,7 @@ export class SlidesView extends TextFileView {
   }
 
   private applyPanelSizes(): void {
-    if (!this.workspace || !this.main || !this.sourcePanel) return;
+    if (!this.workspace || !this.main || !this.sourcePanel || this.sorter) return;
     const sidebar = sidebarBounds(this.workspace.clientWidth);
     const source = sourceBounds(this.main.clientHeight);
     const width = clampSize(this.sidebarWidth, sidebar);
@@ -450,7 +516,7 @@ export class SlidesView extends TextFileView {
     this.loadEditor(next.anchor, next.head);
     this.commitChange();
     this.refresh(true);
-    this.editor?.focus();
+    this.focusEditor();
   }
 
   private perform(action: 'add' | 'duplicate' | 'delete' | 'up' | 'down'): void {
@@ -465,7 +531,7 @@ export class SlidesView extends TextFileView {
     this.loadEditor();
     this.commitChange();
     this.refresh(true);
-    this.editor?.focus();
+    this.focusEditor();
   }
 
   private reorderSlide(from: number, target: number): void {
@@ -478,16 +544,11 @@ export class SlidesView extends TextFileView {
     this.loadEditor();
     this.commitChange();
     this.refresh(true);
-    this.thumbnails[this.index]?.button.scrollIntoView({ block: 'nearest' });
-    this.thumbnails[this.index]?.button.focus({ preventScroll: true });
+    this.focusThumbnail();
   }
 
-  private showDropPosition(y: number): void {
-    const next = this.thumbnails.findIndex(thumb => {
-      const rect = thumb.button.getBoundingClientRect();
-      return y < rect.top + rect.height / 2;
-    });
-    const boundary = next === -1 ? this.thumbnails.length : next;
+  private showDropPosition(x: number, y: number): void {
+    const boundary = thumbnailBoundary(this.thumbnails.map(thumb => thumb.button.getBoundingClientRect()), x, y, this.sorter);
     if (boundary === this.dropBoundary) return;
     this.clearDropPosition();
     this.dropBoundary = boundary;
@@ -505,9 +566,10 @@ export class SlidesView extends TextFileView {
   private scrollDuringDrag(): void {
     if (this.dragFrame) return;
     const win = this.contentEl.ownerDocument.defaultView!;
+    this.dragWindow = win;
     this.dragFrame = win.requestAnimationFrame(() => {
       this.dragFrame = 0;
-      if (this.draggedIndex === null || this.dragY === null) return;
+      if (this.draggedIndex === null || this.dragY === null || this.dragX === null) return;
       const rect = this.rail.getBoundingClientRect();
       const edge = Math.min(48, rect.height / 4);
       const distance = this.dragY < rect.top + edge ? this.dragY - rect.top - edge
@@ -515,16 +577,18 @@ export class SlidesView extends TextFileView {
       const before = this.rail.scrollTop;
       this.rail.scrollTop += Math.max(-14, Math.min(14, distance / 3));
       if (this.rail.scrollTop !== before) {
-        this.showDropPosition(this.dragY);
+        this.showDropPosition(this.dragX, this.dragY);
         this.scrollDuringDrag();
       }
     });
   }
 
   private stopDragScroll(): void {
-    this.contentEl.ownerDocument.defaultView!.cancelAnimationFrame(this.dragFrame);
+    this.dragWindow?.cancelAnimationFrame(this.dragFrame);
     this.dragFrame = 0;
+    this.dragWindow = null;
     this.dragY = null;
+    this.dragX = null;
   }
 
   private clearDrag(): void {
@@ -580,7 +644,8 @@ export class SlidesView extends TextFileView {
 
   focusEditor(): void {
     this.attachEditorDocument();
-    if (this.deck.slides[this.index]?.areas[this.areaIndex]) this.editor?.focus();
+    if (this.sorter || !this.deck.slides[this.index]?.areas[this.areaIndex]) this.focusThumbnail();
+    else this.editor?.focus();
   }
 
   private scheduleRefresh(): void {
@@ -615,6 +680,7 @@ export class SlidesView extends TextFileView {
   }
 
   private buildThumbnails(): void {
+    const focused = this.rail.contains(this.contentEl.ownerDocument.activeElement);
     this.clearDrag();
     this.thumbObserver?.disconnect();
     if (this.thumbOwner) this.removeChild(this.thumbOwner);
@@ -628,6 +694,7 @@ export class SlidesView extends TextFileView {
       captionRow.createSpan({ cls: 'jss-thumb-number', text: String(i + 1).padStart(2, '0') });
       const caption = captionRow.createSpan({ text: slide.title });
       button.addEventListener('click', () => this.select(i));
+      button.addEventListener('dblclick', () => { if (this.sorter) this.setSorter(false); });
       button.addEventListener('dragstart', event => {
         if (!event.dataTransfer || this.deck.slides.length < 2) { event.preventDefault(); return; }
         event.stopPropagation();
@@ -653,6 +720,7 @@ export class SlidesView extends TextFileView {
       }
     }, { root: this.rail, rootMargin: '180px' });
     for (const thumb of this.thumbnails) this.thumbObserver.observe(thumb.button);
+    if (focused) this.focusThumbnail();
   }
 
   private renderThumbnail(i: number): void {
