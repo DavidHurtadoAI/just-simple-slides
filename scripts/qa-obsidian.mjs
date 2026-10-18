@@ -289,7 +289,8 @@ try {
     view.setViewData(original, true); await view.save();
   }, original);
   await page.evaluate(async()=>{await jssSlidesTestLeaf.view.save();});
-  await page.keyboard.press('Control+w');await pause(250);
+  await page.locator('.workspace-tab-header[data-type="just-simple-slides"].is-active .workspace-tab-header-inner-close-button').click();
+  await page.waitForFunction(()=>!app.workspace.getLeavesOfType('just-simple-slides').includes(jssSlidesTestLeaf));
   check('closing the slide tab leaves the original Markdown editor open',await page.evaluate(()=>!app.workspace.getLeavesOfType('just-simple-slides').includes(jssSlidesTestLeaf)&&app.workspace.getLeavesOfType('markdown').includes(jssNativeTestLeaf)));
   check('native Markdown contains the unchanged source after closing slides',await page.evaluate(original=>jssNativeTestLeaf.view.editor.getValue()===original,original));
   check('the source file stays byte-for-byte intact after the round trip',await readFile(`qa/vault/${note}`,'utf8')===original);
@@ -303,7 +304,8 @@ try {
   check('the native note can be closed independently of both slide tabs',await page.evaluate(()=>!app.workspace.getLeavesOfType('markdown').includes(jssNativeTestLeaf)&&app.workspace.getLeavesOfType('just-simple-slides').length===2));
   await page.evaluate(async()=>{await app.workspace.revealLeaf(jssSecondSlidesLeaf);jssSecondSlidesLeaf.view.focusEditor();});
   await page.keyboard.press('Control+End');await page.keyboard.insertText(' SLIDES_ONLY_EDIT');await pause(100);
-  await page.keyboard.press('Control+w');await pause(250);
+  await page.locator('.workspace-tab-header[data-type="just-simple-slides"].is-active .workspace-tab-header-inner-close-button').click();
+  await page.waitForFunction(()=>!app.workspace.getLeavesOfType('just-simple-slides').includes(jssSecondSlidesLeaf));
   check('closing an edited slide tab keeps its changes in the surviving slide tab',await page.evaluate(()=>!app.workspace.getLeavesOfType('just-simple-slides').includes(jssSecondSlidesLeaf)&&jssSlidesTestLeaf.view.getViewData().includes('SLIDES_ONLY_EDIT')));
   await slides();await page.evaluate(()=>jssSlidesTestLeaf.view.focusEditor());
   await page.keyboard.press('Control+End');await page.keyboard.insertText(' KEEP_LATEST');await pause(2400);
