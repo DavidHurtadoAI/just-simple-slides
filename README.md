@@ -2,13 +2,15 @@
 
 **A minimalist visual editor for Markdown presentations in Obsidian.**
 
+Your slides inherit the look of [your Obsidian theme](#your-obsidian-theme): its colors, fonts, and background.
+
 Markdown Slides can put a note on a screen. That alone is not enough to build a serious presentation.
 
 PowerPoint is the best tool for slide design. But for developing the content — writing, structuring ideas, and revising the story — working inside slide objects gets in the way.
 
 Markdown is the perfect format for content: plain text, easy to edit, easy to reuse, and yours to keep. What was missing was a visual editor for working with that content as a presentation.
 
-**Just Simple Slides fills that gap.** See the slides, reorder the story, and keep private notes below the preview. Edit your content in Obsidian's native Markdown editor, which stays open in its own tab. Both views share the same ordinary Markdown file. The layout adjusts automatically and follows your Obsidian theme.
+**Just Simple Slides fills that gap.** See the slides, reorder the story, and keep private notes below the preview. Edit your content in Obsidian's native Markdown editor, which stays open in its own tab. Both views share the same ordinary Markdown file. The layout adjusts automatically.
 
 [Download the latest release](https://github.com/DavidHurtadoAI/just-simple-slides/releases/latest) · [Installation](#installation) · [Slide sorter](#see-the-whole-presentation) · [Normalize headings](#normalize-headings) · [Markdown format](#markdown-format)
 
@@ -145,7 +147,15 @@ Every `[!slide]` callout stays out of the preview, thumbnails, and presentation,
 
 **Right / Down / Space / Enter / Page Down** advances. **Left / Up / Backspace / Page Up** goes back. **Home / End** jumps to the first/last slide. Click an empty part of the slide to advance. Navigation and exit buttons remain available below the slide. The player attempts native fullscreen and falls back to an app-filling overlay when the WebView does not support it.
 
-The background, text, accent, and fonts come from Obsidian's CSS variables. No slide transitions are included in this first version.
+No slide transitions are included in this first version.
+
+## Your Obsidian theme
+
+Just Simple Slides inherits the background, text colors, accent colors, and fonts of your active Obsidian theme. The editor, thumbnails, slide previews, and presentation mode follow that appearance, in light or dark mode. Change your theme in Obsidian and your slides follow.
+
+The screenshot below shows the slide editor with a custom Obsidian theme: the typography, colors, panels, and controls belong to the same visual environment as the rest of the vault.
+
+![Just Simple Slides inheriting a custom Obsidian theme's typography, colors, backgrounds, and controls](assets/obsidian-theme.png)
 
 ## Installation
 
