@@ -12,14 +12,13 @@ export class SlideSurface extends Component {
   private observer: ResizeObserver;
   private mutation: MutationObserver | null = null;
   private frame = 0;
-  private win: Window;
+  private win: NonNullable<Document['defaultView']>;
 
   constructor(private app: App, host: HTMLElement, private label: string) {
     super();
     this.viewport = host.createDiv({ cls: 'jss-viewport', attr: { 'aria-label': label } });
     this.win = host.ownerDocument.defaultView!;
-    this.observer = new ResizeObserver(() => this.scheduleFit());
-    this.observer.observe(this.viewport);
+    this.observer = this.observeViewport();
     this.register(() => {
       this.sequence++;
       this.observer.disconnect();
@@ -103,12 +102,36 @@ export class SlideSurface extends Component {
   }
 
   scheduleFit(): void {
-    this.win.cancelAnimationFrame(this.frame);
-    this.win = this.viewport.ownerDocument.defaultView!;
-    this.frame = this.win.requestAnimationFrame(() => this.fit());
+    this.fitViewport();
+    this.queueFit();
   }
 
-  fit(): void {
+  private queueFit(): void {
+    if (this.frame) return;
+    this.frame = this.win.requestAnimationFrame(() => {
+      this.frame = 0;
+      this.fit();
+    });
+  }
+
+  private observeViewport(): ResizeObserver {
+    const observer = new this.win.ResizeObserver(() => this.fitViewport());
+    observer.observe(this.viewport);
+    return observer;
+  }
+
+  /** Resizing changes only the outer scale; the content always uses 1600 × 900. */
+  fitViewport(): void {
+    const win = this.viewport.ownerDocument.defaultView!;
+    if (win !== this.win) {
+      const pending = !!this.frame;
+      this.win.cancelAnimationFrame(this.frame);
+      this.frame = 0;
+      this.win = win;
+      this.observer.disconnect();
+      this.observer = this.observeViewport();
+      if (pending) this.queueFit();
+    }
     const canvas = this.canvas;
     const width = this.viewport.clientWidth;
     const height = this.viewport.clientHeight;
@@ -117,6 +140,12 @@ export class SlideSurface extends Component {
     canvas.style.setProperty('transform', `scale(${scale})`);
     canvas.style.setProperty('left', `${(width - SLIDE_WIDTH * scale) / 2}px`);
     canvas.style.setProperty('top', `${(height - SLIDE_HEIGHT * scale) / 2}px`);
+  }
+
+  fit(): void {
+    this.fitViewport();
+    const canvas = this.canvas;
+    if (!canvas || !this.viewport.clientWidth || !this.viewport.clientHeight) return;
     for (const [selector, maximum] of [['.jss-title-region', 172], ['.jss-subtitle-region', 108]] as const) {
       const region = canvas.querySelector<HTMLElement>(selector);
       if (!region) continue;

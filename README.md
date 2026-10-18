@@ -34,6 +34,8 @@ Drag the divider beside the thumbnails to change their width. Drag the divider a
 
 Click **Slide sorter** in the toolbar to expand the thumbnails into a grid, like PowerPoint's slide sorter. Use the **Slide size** slider at the bottom to fit more slides on screen or make them easier to read. The grid adjusts to the pane width; the thumbnail size is remembered.
 
+Previews rescale as you switch views or change thumbnail size, including in floating windows.
+
 Drag a card before or after another to change the order. The accent line marks the insertion point, including between rows. Hold near the top or bottom edge to scroll through a long presentation. The full slide moves with all its images and private areas, and the Markdown updates immediately. **Ctrl/Cmd+Z** undoes one move; redo works too. Dropping outside the grid or pressing **Esc** during a drag cancels it.
 
 Click a card to select it. Double-click, press **Enter** or **Esc**, or click **Slide editor** to return to that slide's editor. Switching views keeps the selection, private-area editor, panel sizes, and undo history. **Edit source** and **Present** work from the grid too. The sorter also works in floating Obsidian windows.

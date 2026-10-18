@@ -236,6 +236,7 @@ export class SlidesView extends TextFileView {
     this.registerDomEvent(slider, 'input', () => {
       this.clearDrag();
       this.root.style.setProperty('--jss-sorter-size', `${slider.value}px`);
+      this.fitViewports();
     });
     this.registerDomEvent(slider, 'change', () => {
       this.plugin.updateLayout({ sorterSize: Number(slider.value) });
@@ -309,7 +310,8 @@ export class SlidesView extends TextFileView {
   onResize(): void {
     if (!this.root || this.closed) return;
     this.attachEditorDocument();
-    this.applyPanelSizes();
+    if (this.sorter) this.fitViewports();
+    else this.applyPanelSizes();
   }
 
   private attachEditorDocument(): void {
@@ -337,10 +339,11 @@ export class SlidesView extends TextFileView {
     if (enabled) this.focusThumbnail();
     else {
       this.applyPanelSizes();
-      this.surface.scheduleFit();
       this.thumbnails[this.index]?.button.scrollIntoView({ block: 'nearest' });
       this.focusEditor();
     }
+    // Reused canvases need their new scale before this layout is first painted.
+    this.fitViewports();
   }
 
   private focusThumbnail(): void {
@@ -431,8 +434,13 @@ export class SlidesView extends TextFileView {
       divider.setAttribute('aria-valuemax', String(Math.round(bounds.max)));
       divider.setAttribute('aria-valuenow', String(Math.round(value)));
     }
-    this.surface?.scheduleFit();
+    this.fitViewports();
     this.editor?.requestMeasure();
+  }
+
+  private fitViewports(): void {
+    this.surface?.fitViewport();
+    for (const thumb of this.thumbnails) thumb.surface?.fitViewport();
   }
 
   private makeEditorState(markdown: string, anchor = 0, head = anchor): EditorState {
