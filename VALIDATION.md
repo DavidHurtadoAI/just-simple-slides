@@ -1,6 +1,14 @@
-# Local validation — 0.2.2
+# Local validation — 0.2.3
 
 Checked on 18 October 2026, Windows desktop, in the actual Obsidian application with an isolated vault and application profile.
+
+For 0.2.3, `npm run check` passed with **53 unit tests**, zero lint warnings, CSS compatibility checks, strict TypeScript, production build, and version/asset packaging.
+
+`scripts/qa-thumbnail-fit.mjs` passed **19 real-app checks** with 102 synthetic slides. It samples scale and centering in the same task as the actual view-toggle handler, before asynchronous observers or animation frames can hide a stale scale. The test fails against the official 0.2.2 build at the first editor-to-sorter transition; separate measurements reproduced both directions with more than 100 pixels of initial scale error. With the fix, the worst sampled error was below 0.001 pixels. Checked both directions, rapid repeated toggles, disconnected resize notifications, slider/sidebar/window resizing, lazy previews, reused canvases/editor/history, coalesced content-fit requests, and floating windows with observers attached to the owning document. Resizing existing thumbnails needed no full text-layout pass. Notes, native source, and presentation content remain unchanged; no runtime errors.
+
+The existing sorter suite was rerun with the independent presentation title enabled: **40 checks passed**, including actual drag-and-drop, lazy rendering, notes, undo/redo, theme/narrow layouts, and floating windows. The existing editor/presentation suite also passed all **99 checks**. No runtime errors in either suite.
+
+The results below describe the 0.2.2 baseline unless a newer rerun is specified.
 
 For 0.2.2, `npm run check` passed with **53 unit tests**, zero lint warnings, CSS compatibility checks, strict TypeScript, production build, and version/asset packaging. New unit coverage verifies exact preservation of surrounding content and separators across LF/CRLF/CR, first/last/empty slides, absent final newlines, existing private areas, visible callouts, and literal code examples.
 

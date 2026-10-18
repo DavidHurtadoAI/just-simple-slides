@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.3
+
+- Fix thumbnails briefly appearing cropped or too small when switching between the slide editor and **Slide sorter**. Reused previews now receive their new scale during the layout change, including while changing thumbnail size or resizing the sidebar.
+- Resize the fixed slide canvas without recalculating its text layout. Content, font, and image changes still trigger full fitting; repeated pending requests share one animation frame. Floating views reconnect their resize observers to the window that owns them.
+
 ## 0.2.2
 
 - Add **Create slide notes** to the lower panel when the selected slide has no private `[!slide]` areas. The button appends an empty `> [!slide] Slide notes` callout at the end of that slide, with a blank line before the following `---`, and focuses the notes editor so you can start writing immediately.
