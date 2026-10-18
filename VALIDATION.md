@@ -1,9 +1,10 @@
-# Local validation — 0.1.9
+# Local validation — 0.1.10
 
-Checked on 17 October 2026, Windows desktop, in the actual Obsidian application with an isolated vault and application profile.
+Checked on 18 October 2026, Windows desktop, in the actual Obsidian application with an isolated vault and application profile.
 
 - `npm run check`: the full official Obsidian ESLint recommended configuration, CSS compatibility checks, 32 unit tests, strict TypeScript, production build, and version/asset packaging passed with zero lint warnings. The sentence-case rule preserves the plugin name as a brand; no rules are disabled.
 - `scripts/qa-obsidian.mjs`: 99 integration checks passed against the actual Obsidian application, with no runtime errors. The JSON report and original screenshots are in the ignored `qa/` folder.
+- `scripts/qa-floating-notes.mjs`: 14 integration checks passed with the **slide view itself** moved into a real floating window. Exercised every one of 78 private areas across 30 synthetic slides, long-note scrolling, typing, native Markdown synchronization, undo, panel/window resizing, fullscreen and return, source navigation, and unchanged file contents. Verified the editor retains its instance, selection, unsaved text and undo history while its document root moves. The previous version left the editor bound to the main window's document.
 - `scripts/qa-restored-source.mjs`: after restarting Obsidian with the slide tab active and the Markdown tab inactive, confirmed the native tab was actually deferred, then checked the source button reuses that exact tab, keeps the slide tab open, positions the cursor in slide five after restoration settles, gives keyboard focus, and leaves content unchanged. This test requires a fresh test-app restart with the demo's slide tab active.
 - Checked that opening slides from Markdown creates a new tab, preserves the original native editor and cursor, and follows that cursor to the matching slide. Repeating the command from Markdown creates another slide tab. The lower panel has no full source selector.
 - Checked **Edit source** reuses the original native editor, focuses and scrolls to the selected first, middle, and last slides, and leaves both tabs and content intact. Checked navigation after reordering, pending private notes, original CRLF offsets, reading-to-editing mode, opening a missing note tab, and reusing/focusing a real Obsidian pop-out window. The action remains visible as an accessible icon in a narrow pane.

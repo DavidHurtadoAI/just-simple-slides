@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.10
+
+- Fix private notes becoming blank or unresponsive after moving the slide view into a floating Obsidian window. Reconnect the notes editor to its new document while preserving unsaved content, selection, and undo history.
+- Schedule slide fitting in the destination window after a move, keeping floating previews responsive when resized.
+
 ## 0.1.9
 
 - Wait for a restored Markdown tab to finish loading before **Edit source** moves the cursor. This keeps Obsidian's saved cursor from overriding the selected slide after restarting the app.

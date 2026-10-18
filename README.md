@@ -81,6 +81,8 @@ The lower editor contains only private areas: one selector for each `[!slide]` c
 
 Selecting a private area edits only its body, without the quote markers or header. The editor uses Obsidian's configured text font and size. Switching areas leaves the file unchanged; edits appear in the original Markdown tab and save to the same file. Clearing a body keeps the empty callout. Add, rename, or remove areas in the native Markdown editor; selectors update as you type. Put a blank line between separate callouts, following normal Obsidian Markdown.
 
+You can move the slide view into a floating Obsidian window for another monitor. Private areas remain editable there, including after switching slides, resizing the window, or returning from fullscreen.
+
 Every `[!slide]` callout stays out of the preview, thumbnails, and presentation, including folded callouts. Its name never becomes a slide title or a layout instruction. All other callout types remain visible. New slides include one suggested **Notes** area; existing notes work unchanged, and existing callout titles are simply selector names.
 
 ![Private Notes and Cues selectors in the lower editor](assets/details.png)
