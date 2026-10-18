@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.4
+
+- Navigate the normal slide editor with **Right/Down** for the next slide and **Left/Up** for the previous slide. Opening the slide view and returning from the sorter focus the preview, ready for arrow navigation. Clicking the preview restores that focus after editing notes.
+- Preserve normal arrow-key behavior in private notes, text fields, area selectors, and resizable dividers. Modified shortcuts, thumbnail reordering, grid navigation, and presentation controls keep their existing behavior. Navigation stops at the first/last slide without changing the Markdown.
+
 ## 0.2.3
 
 - Fix thumbnails briefly appearing cropped or too small when switching between the slide editor and **Slide sorter**. Reused previews now receive their new scale during the layout change, including while changing thumbnail size or resizing the sidebar.

@@ -92,6 +92,7 @@ try {
   await native();
   await page.evaluate(async()=>{await app.plugins.plugins['just-simple-slides'].open(jssNativeTestLeaf.view.file);globalThis.jssSecondSlidesLeaf=app.workspace.activeLeaf;});
   check('opening the same Markdown again creates another slide tab',await page.evaluate(()=>jssSecondSlidesLeaf!==jssSlidesTestLeaf&&jssSecondSlidesLeaf!==jssNativeTestLeaf&&app.workspace.getLeavesOfType('just-simple-slides').length===2));
+  await page.locator('.workspace-leaf.mod-active .jss-editor .cm-content').click();
   await page.keyboard.press('Control+End');await page.keyboard.insertText(' SECOND_TAB_PRIVATE');
   check('two slide tabs and the native editor share unsaved area edits',await page.evaluate(()=>jssSlidesTestLeaf.view.getViewData().includes('SECOND_TAB_PRIVATE')&&jssSlidesTestLeaf.view.getViewData()===jssSecondSlidesLeaf.view.getViewData()&&jssNativeTestLeaf.view.editor.getValue()===jssSecondSlidesLeaf.view.getViewData()));
   await pause(100);

@@ -26,6 +26,8 @@ Markdown is the perfect format for content: plain text, easy to edit, easy to re
 
 Use **Just Simple Slides: Create presentation** for a new file. New, duplicate, move up/down, and delete controls are beside the thumbnail rail. **Ctrl/Cmd+Z** undoes edits and slide operations, including after selecting another slide; **Ctrl/Cmd+Shift+Z** or **Ctrl+Y** redoes them.
 
+In the normal slide editor, **Right / Down** selects the next slide and **Left / Up** selects the previous one. The preview receives keyboard focus when you open the slide view or return from the sorter. While editing notes, arrows move the text cursor as usual; click the slide preview to resume slide navigation. Area selectors and panel dividers keep their own arrow-key controls.
+
 Drag a thumbnail above or below another to reorder slides. An accent line marks the drop position, and the rail scrolls near its edges. The moved slide stays selected; the Markdown file updates automatically, including its private notes. A reorder is one undo step. Dropping outside the rail cancels the move.
 
 Drag the divider beside the thumbnails to change their width. Drag the divider above the lower editor to change its height. Double-click a divider to reset it, or focus it and use the arrow keys. Panel sizes and the selected private area are remembered.
