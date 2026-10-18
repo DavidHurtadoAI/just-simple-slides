@@ -1,6 +1,6 @@
 {
   "name": "just-simple-slides",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "private": true,
   "description": "Edit ordinary Markdown as slides and present with your Obsidian theme.",
   "author": "David Hurtado",

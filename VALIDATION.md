@@ -1,6 +1,14 @@
-# Local validation — 0.2.1
+# Local validation — 0.2.2
 
 Checked on 18 October 2026, Windows desktop, in the actual Obsidian application with an isolated vault and application profile.
+
+For 0.2.2, `npm run check` passed with **53 unit tests**, zero lint warnings, CSS compatibility checks, strict TypeScript, production build, and version/asset packaging. New unit coverage verifies exact preservation of surrounding content and separators across LF/CRLF/CR, first/last/empty slides, absent final newlines, existing private areas, visible callouts, and literal code examples.
+
+`scripts/qa-create-notes.mjs` passed **23 real-app checks** using the lower-panel button. Checked keyboard activation, a selected empty **Slide notes** area with immediate editor focus, exact insertion before a separator, unchanged frontmatter/presentation title/other slides, existing folded private areas, separation from ordinary callouts, typing quoted separators, privacy in previews/thumbnails, one-step creation undo/redo, first/middle/last/empty slides, narrow panes, and unfinished code blocks. Checked native Markdown and a second slide tab synchronize immediately, floating-window creation/typing/undo use the correct editor document, and saves work without a native Markdown tab. The fixture finishes saved byte for byte as originally written. No runtime errors.
+
+The existing `scripts/qa-obsidian.mjs` suite was also rerun for 0.2.2: **99 checks passed** with no runtime errors, covering editing, slide operations, presentation, private areas, source navigation, synchronization, and saving.
+
+The results below describe the 0.2.1 baseline unless a newer rerun is specified.
 
 For 0.2.1, the sorter and floating-note suites also ran with `QA_NORMALIZE_HEADINGS=1`, adding the independent presentation title to their fixtures before testing. The existing editor suite uses original Markdown without the new title prefix, covering both formats.
 
@@ -14,7 +22,7 @@ For 0.2.1, the sorter and floating-note suites also ran with `QA_NORMALIZE_HEADI
 - `scripts/qa-restored-source.mjs`: after restarting Obsidian with the slide tab active and the Markdown tab inactive, confirmed the native tab was actually deferred, then checked the source button reuses that exact tab, keeps the slide tab open, positions the cursor in slide five after restoration settles, gives keyboard focus, and leaves content unchanged. This test requires a fresh test-app restart with the demo's slide tab active.
 - Checked that opening slides from Markdown creates a new tab, preserves the original native editor and cursor, and follows that cursor to the matching slide. Repeating the command from Markdown creates another slide tab. The lower panel has no full source selector.
 - Checked **Edit source** reuses the original native editor, focuses and scrolls to the selected first, middle, and last slides, and leaves both tabs and content intact. Checked navigation after reordering, pending private notes, original CRLF offsets, reading-to-editing mode, opening a missing note tab, and reusing/focusing a real Obsidian pop-out window. The action remains visible as an accessible icon in a narrow pane.
-- Checked one selector per private callout, source order, optional names, repeated names, unnamed and empty areas. Slides without callouts show a non-editable hint; adding the first callout in native Markdown replaces it with an area editor.
+- Checked one selector per private callout, source order, optional names, repeated names, unnamed and empty areas. Slides without callouts show an empty state; adding the first callout in native Markdown replaces it with an area editor. From 0.2.2, the empty state also provides **Create slide notes**.
 - Checked actual editor input into the second area, byte-for-byte preservation outside that body, arbitrary Markdown without a type form, independent same-name areas, clearing a body without deleting the callout, undo/redo across area selection, and autosave to the real file. CRLF bodies load as separate logical editor lines, and the area replacement preserves surrounding bytes in memory. The native Obsidian editor normalizes CRLF to LF on save; checked that every line survives that normalization.
 - Checked live selector updates after renaming, adding and removing callouts in the native Markdown editor, plus Left/Right, Home and End navigation.
 - Checked computed font family and size on both editors' actual CodeMirror content elements, including a custom text font and 23px text setting.

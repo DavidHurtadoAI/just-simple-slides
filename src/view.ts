@@ -6,7 +6,7 @@ import { search, searchKeymap } from '@codemirror/search';
 import type JustSimpleSlides from './main';
 import { addSlide, DeckHistory, deleteSlide, moveSlide, moveSlideTo, parseDeck, replaceSlide, slideAt, type Deck, type Snapshot } from './deck';
 import { SlideSurface } from './surface';
-import { updateSlideArea } from './details';
+import { appendSlideNotes, readSlideAreas, updateSlideArea } from './details';
 import { clampSize, DEFAULT_LAYOUT, sidebarBounds, sourceBounds } from './layout';
 import { PLUGIN_ICON } from './icon';
 import { thumbnailBoundary, thumbnailColumns } from './sorter';
@@ -266,7 +266,8 @@ export class SlidesView extends TextFileView {
     this.sourceHost = source.createDiv({ cls: 'jss-editor' });
     this.emptyAreas = source.createDiv({ cls: 'jss-empty-areas' });
     this.emptyAreas.createSpan({ text: 'No slide areas' });
-    this.emptyAreas.createSpan({ text: 'Add a [!slide] callout in your Markdown note.' });
+    this.emptyAreas.createSpan({ text: 'Keep presenter notes here, outside the slide.' });
+    this.button(this.emptyAreas, 'plus', 'Create slide notes', () => this.createSlideNotes(), 'Create slide notes');
     this.registerDomEvent(this.sourceHost, 'focusin', () => this.history.breakGroup());
     this.editor = new EditorView({ parent: this.sourceHost, state: this.makeEditorState('') });
     this.panelObserver = new ResizeObserver(() => this.applyPanelSizes());
@@ -561,6 +562,24 @@ export class SlidesView extends TextFileView {
     this.refresh(true);
     this.focusEditor();
     new Notice('Headings normalized. Undo with Ctrl/Cmd+Z.');
+  }
+
+  private createSlideNotes(): void {
+    const slide = this.deck.slides[this.index];
+    if (this.closed || !this.file || !slide || slide.areas.length) return;
+    const markdown = appendSlideNotes(slide.markdown, this.deck.eol);
+    if (!readSlideAreas(markdown).length) {
+      new Notice('Close the unfinished Markdown block in the source before creating slide notes.');
+      return;
+    }
+    this.history.record(this.snapshot());
+    this.source = replaceSlide(this.source, slide, markdown);
+    this.deck = parseDeck(this.source);
+    this.areaIndex = 0;
+    this.loadEditor();
+    this.commitChange();
+    this.refresh(true);
+    this.focusEditor();
   }
 
   private reorderSlide(from: number, target: number): void {
