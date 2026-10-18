@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.0
+
+- Add **Slide sorter**, a full-pane grid of slide previews for arranging the whole presentation. Drag cards between rows; an insertion marker shows the destination, and the grid scrolls near its edges. Each move keeps the complete Markdown slide and private areas together and is one undo step.
+- Adjust thumbnail size with the **Slide size** slider. The grid follows the available pane width and your Obsidian theme; nearby previews render lazily for large decks.
+- Click to select; double-click, press Enter or Escape, or click **Slide editor** to return to editing. Keep the same selection, private notes, panel sizes, and undo history when switching views, including in floating windows.
+- Navigate with arrows and Home/End. Hold Ctrl/Cmd with those keys to reorder without dragging. Existing add, duplicate, delete, source navigation, and presentation controls also work from the sorter.
+
 ## 0.1.10
 
 - Fix private notes becoming blank or unresponsive after moving the slide view into a floating Obsidian window. Reconnect the notes editor to its new document while preserving unsaved content, selection, and undo history.

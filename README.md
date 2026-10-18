@@ -28,6 +28,18 @@ Drag a thumbnail above or below another to reorder slides. An accent line marks 
 
 Drag the divider beside the thumbnails to change their width. Drag the divider above the lower editor to change its height. Double-click a divider to reset it, or focus it and use the arrow keys. Panel sizes and the selected private area are remembered.
 
+## See the whole presentation
+
+Click **Slide sorter** in the toolbar to expand the thumbnails into a grid, like PowerPoint's slide sorter. Use the **Slide size** slider at the bottom to fit more slides on screen or make them easier to read. The grid adjusts to the pane width; the thumbnail size is remembered.
+
+Drag a card before or after another to change the order. The accent line marks the insertion point, including between rows. Hold near the top or bottom edge to scroll through a long presentation. The full slide moves with all its images and private areas, and the Markdown updates immediately. **Ctrl/Cmd+Z** undoes one move; redo works too. Dropping outside the grid or pressing **Esc** during a drag cancels it.
+
+Click a card to select it. Double-click, press **Enter** or **Esc**, or click **Slide editor** to return to that slide's editor. Switching views keeps the selection, private-area editor, panel sizes, and undo history. **Edit source** and **Present** work from the grid too. The sorter also works in floating Obsidian windows.
+
+Use **Left/Right** to select adjacent slides, **Up/Down** to move by a visible grid row, and **Home/End** for the first or last slide. Hold **Ctrl/Cmd** with these keys to move the selected slide instead. Add, duplicate, move, and delete controls remain at the bottom. Nearby previews render as needed so large decks do not render every slide at once.
+
+![Slide sorter with a responsive grid, selected slide, and thumbnail size control](assets/sorter.png)
+
 ## Markdown format
 
 ```md
