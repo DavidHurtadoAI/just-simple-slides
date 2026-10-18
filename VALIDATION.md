@@ -1,6 +1,14 @@
-# Local validation — 0.2.5
+# Local validation — 0.2.6
 
 Checked on 18 October 2026, Windows desktop, in the actual Obsidian application with an isolated vault and application profile.
+
+For 0.2.6, `npm run check` passed with **53 unit tests**, zero lint warnings, CSS compatibility checks, strict TypeScript, production build, and version/asset packaging.
+
+`scripts/qa-presentation-progress.mjs` passed **27 real-app checks**. Checked 2px height, full bottom-edge alignment, low opacity, theme accent, smooth 700 ms movement including its midpoint, screen-reader values, and no pointer/focus interception. Checked forward/backward navigation, Home/End and last-slide boundaries, navigation buttons, rapid requests, starting midway, reduced motion, single/empty slides, and a narrow floating presentation window. The bar stays visible while controls dim and consumes no slide space. Inspected light/dark screenshots; Escape removes the bar, selection is retained, Markdown stays byte-for-byte unchanged, and no runtime errors occurred.
+
+The existing presentation Fade suite also passed all **27 checks**, including native fullscreen, privacy, rapid/reverse navigation, delayed rendering, exit during rendering, resizing, reduced motion, and floating windows. Its animation lookup now targets the slide stage so it can distinguish the slide Fade from the progress bar's separate CSS transition.
+
+The results below describe the 0.2.5 baseline unless a newer rerun is specified.
 
 For 0.2.5, `npm run check` passed with **53 unit tests**, zero lint warnings, CSS compatibility checks, strict TypeScript, production build, and version/asset packaging.
 

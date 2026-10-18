@@ -837,6 +837,7 @@ class Presentation extends Component {
   private root!: HTMLElement;
   private surface!: SlideSurface;
   private counter!: HTMLElement;
+  private progress!: HTMLElement;
   private previous!: HTMLButtonElement;
   private next!: HTMLButtonElement;
   private ownsFullscreen = false;
@@ -868,6 +869,11 @@ class Presentation extends Component {
     this.counter = controls.createSpan({ cls: 'jss-player-counter', attr: { 'aria-live': 'polite' } });
     this.next = this.control(controls, 'chevron-right', 'Next slide', () => this.go(1));
     this.control(controls, 'minimize', 'Exit presentation (Esc)', () => this.stop());
+    this.progress = this.root.createDiv({ cls: 'jss-player-progress', attr: {
+      role: 'progressbar', 'aria-label': 'Presentation progress', 'aria-valuemin': '0',
+      'aria-valuemax': String(this.deck.slides.length),
+    } });
+    this.progress.createDiv({ cls: 'jss-player-progress-fill' });
     this.registerDomEvent(this.root, 'click', event => {
       if ((event.target as HTMLElement).closest('a, button, input, video, audio, iframe')) return;
       this.go(1);
@@ -916,6 +922,9 @@ class Presentation extends Component {
     const slide = this.deck.slides[this.index]!;
     const sequence = ++this.sequence;
     this.counter.setText(`${this.index + 1} / ${this.deck.slides.length}`);
+    this.progress.style.setProperty('--jss-progress', String((this.index + 1) / this.deck.slides.length));
+    this.progress.setAttribute('aria-valuenow', String(this.index + 1));
+    this.progress.setAttribute('aria-valuetext', `Slide ${this.index + 1} of ${this.deck.slides.length}`);
     this.previous.disabled = this.index === 0;
     this.next.disabled = this.index === this.deck.slides.length - 1;
     void this.surface.render(slide.markdown, this.view.file?.path ?? '', 'fade').then(() => {

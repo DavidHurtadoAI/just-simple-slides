@@ -153,6 +153,8 @@ Every `[!slide]` callout stays out of the preview, thumbnails, and presentation,
 
 Slides use a **0.70-second Fade**: the next slide dissolves over the previous one, keeping your Obsidian theme throughout. This is the only transition and has no settings. The first slide appears immediately; the system's reduced-motion preference disables the fade.
 
+A subtle **2px progress bar** along the bottom shows your position in the deck. It fills smoothly as you advance and moves back when you revisit a slide, reaching full width on the last slide. It uses your theme's accent at low opacity and follows reduced motion. Progress is based on slide position, not elapsed time.
+
 ## Your Obsidian theme
 
 Just Simple Slides inherits the background, text colors, accent colors, and fonts of your active Obsidian theme. The editor, thumbnails, slide previews, and presentation mode follow that appearance, in light or dark mode. Change your theme in Obsidian and your slides follow.
