@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.5
+
+- Use a **0.70-second Fade** when changing slides in presentation mode. The incoming slide dissolves over the previous one with the current Obsidian theme. Fade is the only transition and has no settings; the first slide appears immediately and reduced motion follows the system preference.
+- Keep navigation responsive during an unfinished fade, discard superseded renders, and clean up outgoing slide components and animations on completion or exit. Both slides stay fitted during fullscreen/window resizing; outgoing links are excluded from interaction and keyboard focus. Editor and sorter previews keep their immediate updates.
+
 ## 0.2.4
 
 - Navigate the normal slide editor with **Right/Down** for the next slide and **Left/Up** for the previous slide. Opening the slide view and returning from the sorter focus the preview, ready for arrow navigation. Clicking the preview restores that focus after editing notes.

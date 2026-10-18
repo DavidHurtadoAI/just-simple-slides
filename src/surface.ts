@@ -8,6 +8,8 @@ export class SlideSurface extends Component {
   readonly viewport: HTMLElement;
   private canvas: HTMLElement | null = null;
   private rendered: Component | null = null;
+  private outgoing: HTMLElement | null = null;
+  private finishTransition: (() => void) | null = null;
   private sequence = 0;
   private observer: ResizeObserver;
   private mutation: MutationObserver | null = null;
@@ -21,6 +23,7 @@ export class SlideSurface extends Component {
     this.observer = this.observeViewport();
     this.register(() => {
       this.sequence++;
+      this.finishTransition?.();
       this.observer.disconnect();
       this.mutation?.disconnect();
       this.win.cancelAnimationFrame(this.frame);
@@ -28,7 +31,7 @@ export class SlideSurface extends Component {
     });
   }
 
-  async render(markdown: string, path: string): Promise<void> {
+  async render(markdown: string, path: string, transition: 'none' | 'fade' = 'none'): Promise<void> {
     const sequence = ++this.sequence;
     const component = this.addChild(new Component());
     const next = this.viewport.createDiv({ cls: 'jss-slide markdown-rendered jss-preparing' });
@@ -81,9 +84,11 @@ export class SlideSurface extends Component {
         next.createDiv({ cls: 'jss-empty-slide', text: 'Empty slide' });
       }
       next.querySelectorAll('input, button, textarea, select').forEach(el => el.setAttribute('disabled', ''));
-      next.removeClass('jss-preparing');
-      this.canvas?.remove();
-      if (this.rendered) this.removeChild(this.rendered);
+      // Finish an interrupted fade only once its replacement is ready. Keep at
+      // most two live slides, even when the user holds a navigation key down.
+      this.finishTransition?.();
+      const previous = this.canvas;
+      const previousComponent = this.rendered;
       this.rendered = component;
       this.canvas = next;
       this.mutation?.disconnect();
@@ -93,6 +98,31 @@ export class SlideSurface extends Component {
       component.registerDomEvent(next, 'load', () => this.scheduleFit(), true);
       component.registerDomEvent(next, 'error', () => this.scheduleFit(), true);
       this.fit();
+      next.removeClass('jss-preparing');
+      if (previous && previousComponent && transition === 'fade'
+        && !this.win.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        this.outgoing = previous;
+        previous.setAttribute('inert', '');
+        previous.setAttribute('aria-hidden', 'true');
+        // The opaque theme background dissolves over the previous slide,
+        // without fading the whole stage through an empty or black frame.
+        const animation = next.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 700, easing: 'ease-in-out' });
+        const finish = (): void => {
+          animation.onfinish = null;
+          animation.oncancel = null;
+          animation.cancel();
+          previous.remove();
+          this.removeChild(previousComponent);
+          this.outgoing = null;
+          this.finishTransition = null;
+        };
+        this.finishTransition = finish;
+        animation.onfinish = finish;
+        animation.oncancel = finish;
+      } else {
+        previous?.remove();
+        if (previousComponent) this.removeChild(previousComponent);
+      }
       void next.ownerDocument.fonts.ready.then(() => this.scheduleFit());
     } catch (error) {
       this.removeChild(component);
@@ -137,9 +167,12 @@ export class SlideSurface extends Component {
     const height = this.viewport.clientHeight;
     if (!canvas || !width || !height) return;
     const scale = Math.min(width / SLIDE_WIDTH, height / SLIDE_HEIGHT);
-    canvas.style.setProperty('transform', `scale(${scale})`);
-    canvas.style.setProperty('left', `${(width - SLIDE_WIDTH * scale) / 2}px`);
-    canvas.style.setProperty('top', `${(height - SLIDE_HEIGHT * scale) / 2}px`);
+    for (const slide of [canvas, this.outgoing]) {
+      if (!slide) continue;
+      slide.style.setProperty('transform', `scale(${scale})`);
+      slide.style.setProperty('left', `${(width - SLIDE_WIDTH * scale) / 2}px`);
+      slide.style.setProperty('top', `${(height - SLIDE_HEIGHT * scale) / 2}px`);
+    }
   }
 
   fit(): void {

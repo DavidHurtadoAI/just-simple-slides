@@ -876,7 +876,8 @@ class Presentation extends Component {
     this.registerDomEvent(this.root, 'keydown', event => {
       // Keep focus inside the full-screen player, including its exit control.
       if (event.key !== 'Tab') return;
-      const focusable = [...this.root.querySelectorAll<HTMLElement>('button:not(:disabled), a[href]')];
+      const focusable = [...this.root.querySelectorAll<HTMLElement>('button:not(:disabled), a[href]')]
+        .filter(element => !element.closest('[inert]'));
       const first = focusable[0], last = focusable[focusable.length - 1];
       if (event.shiftKey && (this.document.activeElement === first || this.document.activeElement === this.root)) { event.preventDefault(); last?.focus(); }
       else if (!event.shiftKey && this.document.activeElement === last) { event.preventDefault(); first?.focus(); }
@@ -908,15 +909,21 @@ class Presentation extends Component {
   }
   private go(direction: number): void { this.show(this.index + direction); }
   private show(index: number): void {
-    this.index = Math.max(0, Math.min(index, this.deck.slides.length - 1));
+    if (this.stopped) return;
+    const next = Math.max(0, Math.min(index, this.deck.slides.length - 1));
+    if (next === this.index && this.sequence) return;
+    this.index = next;
     const slide = this.deck.slides[this.index]!;
     const sequence = ++this.sequence;
     this.counter.setText(`${this.index + 1} / ${this.deck.slides.length}`);
     this.previous.disabled = this.index === 0;
     this.next.disabled = this.index === this.deck.slides.length - 1;
-    void this.surface.render(slide.markdown, this.view.file?.path ?? '').then(() => {
-      if (sequence === this.sequence) this.root.setAttribute('aria-label', `Slide ${this.index + 1}: ${slide.title}`);
-    }).catch(error => { console.error('Just Simple Slides:', error); new Notice('Could not render this slide.'); });
+    void this.surface.render(slide.markdown, this.view.file?.path ?? '', 'fade').then(() => {
+      if (!this.stopped && sequence === this.sequence) this.root.setAttribute('aria-label', `Slide ${this.index + 1}: ${slide.title}`);
+    }).catch(error => {
+      if (this.stopped || sequence !== this.sequence) return;
+      console.error('Just Simple Slides:', error); new Notice('Could not render this slide.');
+    });
   }
   refit(): void { this.surface?.scheduleFit(); }
   stop(): void {

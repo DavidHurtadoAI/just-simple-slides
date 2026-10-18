@@ -151,7 +151,7 @@ Every `[!slide]` callout stays out of the preview, thumbnails, and presentation,
 
 **Right / Down / Space / Enter / Page Down** advances. **Left / Up / Backspace / Page Up** goes back. **Home / End** jumps to the first/last slide. Click an empty part of the slide to advance. Navigation and exit buttons remain available below the slide. The player attempts native fullscreen and falls back to an app-filling overlay when the WebView does not support it.
 
-No slide transitions are included in this first version.
+Slides use a **0.70-second Fade**: the next slide dissolves over the previous one, keeping your Obsidian theme throughout. This is the only transition and has no settings. The first slide appears immediately; the system's reduced-motion preference disables the fade.
 
 ## Your Obsidian theme
 
@@ -177,7 +177,7 @@ Copy both files from `demo/` to a vault to try the six-slide example.
 
 The priority today is **editing a Markdown file as a presentation**: seeing the slides, shaping the content, arranging their order, and keeping private notes nearby.
 
-Future versions will improve presentation mode with restrained **animations and transitions**. They will stay simple and optional. The editor and the presentation experience will remain minimalist: a small set of useful controls, sensible defaults, and your content at the center.
+Presentation mode currently has one restrained transition: **Fade**. Future improvements to animations and transitions will follow the same minimalist approach: a small set of useful controls, sensible defaults, and your content at the center.
 
 ## Development
 
@@ -193,6 +193,6 @@ Uses the [Obsidian TextFileView API](https://github.com/obsidianmd/obsidian-api)
 
 Heading normalization uses the bundled [Lezer Markdown parser](https://github.com/lezer-parser/markdown) to identify headings without rewriting nested content. Its license and those of its bundled dependencies are included in `main.js` and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
-The public Obsidian API does not provide an embeddable native editor restricted to a document fragment. The private-area editor uses the same CodeMirror engine and Obsidian typography; full native Live Preview, autocomplete, and Markdown editing remain available in the original note tab. Slide transitions, export, and a separate presenter window are outside this first version. Arbitrary third-party interactive embeds may impose their own layout or focus behavior.
+The public Obsidian API does not provide an embeddable native editor restricted to a document fragment. The private-area editor uses the same CodeMirror engine and Obsidian typography; full native Live Preview, autocomplete, and Markdown editing remain available in the original note tab. Export and a separate presenter window are outside this version. Arbitrary third-party interactive embeds may impose their own layout or focus behavior.
 
 See [VALIDATION.md](VALIDATION.md) for the local test results and platform coverage.

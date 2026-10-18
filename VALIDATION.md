@@ -1,6 +1,14 @@
-# Local validation — 0.2.4
+# Local validation — 0.2.5
 
 Checked on 18 October 2026, Windows desktop, in the actual Obsidian application with an isolated vault and application profile.
+
+For 0.2.5, `npm run check` passed with **53 unit tests**, zero lint warnings, CSS compatibility checks, strict TypeScript, production build, and version/asset packaging.
+
+`scripts/qa-presentation-fade.mjs` passed **27 real-app checks**. Checked native fullscreen, immediate first-slide display, exact 700 ms animation timing/keyframes, both slides visible at the midpoint, theme backgrounds, private-area privacy, visible ordinary callouts, and outgoing-link focus exclusion. Checked natural completion, reverse navigation, Home/End boundaries without restarting a fade, replacement during an unfinished transition, 30 rapid requests, an older render deliberately delayed by a Markdown postprocessor, and exit while rendering. Checked both layers fit during resizing, Escape cleanup/selection, immediate editor previews, system reduced motion, dark mode, and an actual floating presentation window with notes retained on return. Inspected the midpoint screenshot. Markdown stays byte-for-byte unchanged; no runtime errors.
+
+The existing editor/presentation suite also passed all **99 checks**, including slide operations, notes, source synchronization, fitting, and fullscreen keyboard controls. Its CRLF check now allows native Obsidian's documented newline normalization before taking the asynchronous snapshot; unit tests still assert exact newline preservation by private-area replacement. No runtime errors.
+
+The results below describe the 0.2.4 baseline unless a newer rerun is specified.
 
 For 0.2.4, `npm run check` passed with **53 unit tests**, zero lint warnings, CSS compatibility checks, strict TypeScript, production build, and version/asset packaging.
 
