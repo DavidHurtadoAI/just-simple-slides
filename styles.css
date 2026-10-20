@@ -165,3 +165,15 @@
 @media (prefers-reduced-motion: reduce) {
   .jss-player-controls, .jss-player-progress-fill { transition: none; }
 }
+
+/* Export to PDF: renders full-resolution 1600 × 900 slides formatted for print. */
+.print.jss-print-deck { position: fixed; left: -99999px; top: 0; width: 1600px; height: 900px; overflow: hidden; opacity: 0; pointer-events: none; z-index: -1; }
+.jss-print-page { width: 1600px; height: 900px; position: relative; overflow: hidden; }
+.jss-print-page .jss-slide { outline: none; border: none; }
+@media print {
+  @page { size: 16.6667in 9.375in; margin: 0; }
+  html, body { margin: 0; padding: 0; background: var(--background-primary); -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .print.jss-print-deck { display: block; position: static; left: auto; top: auto; width: 1600px; height: auto; overflow: visible; opacity: 1; background: var(--background-primary); -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .jss-print-page { width: 1600px; height: 900px; page-break-after: always; page-break-inside: avoid; position: relative; overflow: hidden; background: var(--background-primary); -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .jss-print-page:last-child { page-break-after: auto; }
+}
