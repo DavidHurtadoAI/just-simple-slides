@@ -1,4 +1,4 @@
-import { Component, MarkdownView, Notice, Scope, setIcon, TextFileView, type WorkspaceLeaf } from 'obsidian';
+import { Component, FileSystemAdapter, MarkdownView, Notice, Scope, setIcon, TextFileView, type WorkspaceLeaf } from 'obsidian';
 import { EditorState, Text } from '@codemirror/state';
 import { drawSelection, EditorView, keymap, lineNumbers, placeholder } from '@codemirror/view';
 import { defaultKeymap, indentWithTab } from '@codemirror/commands';
@@ -52,6 +52,7 @@ export class SlidesView extends TextFileView {
   private timer = 0;
   private closed = false;
   private player: Presentation | null = null;
+  private exporting = false;
   private renderId = 0;
   private currentPreview = '';
   private draggedIndex: number | null = null;
@@ -157,6 +158,7 @@ export class SlidesView extends TextFileView {
       this.editor?.requestMeasure();
     }).addClass('jss-source-toggle');
     this.button(actions, PLUGIN_ICON, 'Present from this slide (F5)', () => { void this.present(); }, 'Present', 'mod-cta');
+    this.button(actions, 'printer', 'Export slides to PDF', () => { void this.exportPdf(); }, 'Export');
     const workspace = this.workspace = this.root.createDiv({ cls: 'jss-workspace' });
     const sidebar = this.sidebar = workspace.createDiv({ cls: 'jss-sidebar' });
     const railHeader = sidebar.createDiv({ cls: 'jss-rail-header' });
@@ -819,6 +821,73 @@ export class SlidesView extends TextFileView {
     await this.save();
     this.player = this.addChild(new Presentation(this, this.deck, this.index, () => { this.player = null; }));
     await this.player.start();
+  }
+
+  async exportPdf(): Promise<void> {
+    if (this.exporting || this.player || !this.file) return;
+    await this.save();
+    this.exporting = true;
+    const doc = this.contentEl.ownerDocument;
+    const win = doc.defaultView;
+    if (!win) { this.exporting = false; return; }
+
+    const electron = (win as unknown as {
+      require?: (mod: string) => {
+        remote?: {
+          getCurrentWebContents?: () => { printToPDF: (options: unknown) => Promise<Uint8Array> };
+          shell?: { openPath: (path: string) => void };
+        };
+      };
+    }).require?.('electron');
+
+    const notice = new Notice('Exporting slides to PDF...', 0);
+    const printDeck = doc.body.createDiv({ cls: 'print jss-print-deck' });
+    const owner = new Component();
+
+    try {
+      const renders: Promise<void>[] = [];
+      for (const slide of this.deck.slides) {
+        const page = printDeck.createDiv({ cls: 'jss-print-page' });
+        const surface = owner.addChild(new SlideSurface(this.app, page, 'Export slide'));
+        renders.push(surface.render(slide.markdown, this.file.path));
+      }
+      await Promise.all(renders);
+      if (this.closed) return;
+      await doc.fonts.ready;
+      await new Promise(resolve => win.setTimeout(resolve, 200));
+      if (this.closed) return;
+
+      const webContents = electron?.remote?.getCurrentWebContents?.();
+      if (webContents) {
+        const pdfData = await webContents.printToPDF({
+          printBackground: true,
+          preferCSSPageSize: true,
+          landscape: false,
+          marginsType: 1,
+        });
+        const relativePdfPath = this.file.path.replace(/\.md$/i, '.pdf');
+        await this.app.vault.adapter.writeBinary(relativePdfPath, new Uint8Array(pdfData).buffer);
+        notice.hide();
+        new Notice(`PDF saved: ${this.file.basename}.pdf`);
+
+        const adapter = this.app.vault.adapter;
+        const fullPath = adapter instanceof FileSystemAdapter ? adapter.getFullPath(relativePdfPath) : '';
+        if (fullPath) electron?.remote?.shell?.openPath(fullPath);
+      } else {
+        notice.hide();
+        win.addEventListener('afterprint', () => { owner.unload(); printDeck.remove(); }, { once: true });
+        win.print();
+        return;
+      }
+    } catch (error) {
+      console.error('Just Simple Slides:', error);
+      notice.hide();
+      new Notice('Could not export slides to PDF.');
+    } finally {
+      owner.unload();
+      printDeck.remove();
+      this.exporting = false;
+    }
   }
 
   async onClose(): Promise<void> {
