@@ -1,4 +1,4 @@
-import { Component, MarkdownView, Menu, Notice, Scope, setIcon, TextFileView, type TFile, type WorkspaceLeaf } from 'obsidian';
+import { Component, FileSystemAdapter, MarkdownView, Menu, Notice, Scope, setIcon, TextFileView, type TFile, type WorkspaceLeaf } from 'obsidian';
 import { EditorState, Text } from '@codemirror/state';
 import { drawSelection, EditorView, keymap, lineNumbers, placeholder } from '@codemirror/view';
 import { defaultKeymap, indentWithTab } from '@codemirror/commands';
@@ -13,6 +13,7 @@ import { thumbnailBoundary, thumbnailColumns } from './sorter';
 import { normalizeHeadings } from './headings';
 import { HeadingModal } from './heading-modal';
 import { changeHeading, headingSlots, headingValue, type HeadingRole } from './slide-headings';
+import { defaultPdfPath, nextAvailablePdfPath, promptExportConflict, waitForDeckMedia } from './export-pdf';
 
 export const VIEW_TYPE = 'just-simple-slides';
 interface Thumbnail { button: HTMLButtonElement; caption: HTMLElement; surface: SlideSurface | null; markdown?: string; visible: boolean }
@@ -57,6 +58,7 @@ export class SlidesView extends TextFileView {
   private timer = 0;
   private closed = false;
   private player: Presentation | null = null;
+  private exporting = false;
   private renderId = 0;
   private currentPreview = '';
   private draggedIndex: number | null = null;
@@ -205,6 +207,7 @@ export class SlidesView extends TextFileView {
       this.editor?.requestMeasure();
     }).addClass('jss-source-toggle');
     this.button(actions, PLUGIN_ICON, 'Present from this slide (F5)', () => { void this.present(); }, 'Present', 'mod-cta');
+    this.button(actions, 'printer', 'Export slides to PDF', () => { void this.exportPdf(); }, 'Export');
     const workspace = this.workspace = this.root.createDiv({ cls: 'jss-workspace' });
     const sidebar = this.sidebar = workspace.createDiv({ cls: 'jss-sidebar' });
     const railHeader = sidebar.createDiv({ cls: 'jss-rail-header' });
@@ -966,6 +969,105 @@ export class SlidesView extends TextFileView {
     await this.save();
     this.player = this.addChild(new Presentation(this, this.deck, this.index, () => { this.player = null; }));
     await this.player.start();
+  }
+
+  async exportPdf(): Promise<void> {
+    if (this.exporting || this.player || !this.file) return;
+
+    // Snapshot file identity and slide deck immediately so neither save nor later activity alters this export.
+    const sourceFile = this.file;
+    const sourcePath = sourceFile.path;
+    const sourceBasename = sourceFile.basename;
+    const targetBasePdfPath = defaultPdfPath(sourcePath);
+    const slidesSnapshot = this.deck.slides.map(slide => slide.markdown);
+
+    await this.save();
+    if (this.closed) return;
+
+    const doc = this.contentEl.ownerDocument;
+    const win = doc.defaultView;
+    if (!win) return;
+
+    const electron = (win as unknown as {
+      require?: (mod: string) => {
+        remote?: {
+          getCurrentWebContents?: () => { printToPDF: (options: unknown) => Promise<Uint8Array> };
+          shell?: { openPath: (path: string) => void };
+        };
+      };
+    }).require?.('electron');
+
+    const webContents = electron?.remote?.getCurrentWebContents?.();
+
+    let targetPdfPath = targetBasePdfPath;
+    if (webContents) {
+      const exists = await this.app.vault.adapter.exists(targetBasePdfPath);
+      if (exists) {
+        const copyPath = await nextAvailablePdfPath(targetBasePdfPath, p => this.app.vault.adapter.exists(p));
+        const choice = await promptExportConflict(this.app, doc, targetBasePdfPath, copyPath);
+        if (choice.action === 'cancel') return;
+        if (choice.action === 'copy') targetPdfPath = choice.path;
+      }
+    }
+
+    this.exporting = true;
+    const notice = new Notice('Exporting slides to PDF...', 0);
+    const printDeck = doc.body.createDiv({ cls: 'print jss-print-deck' });
+    const owner = new Component();
+    const surfaces: SlideSurface[] = [];
+    let delegatedPrint = false;
+
+    try {
+      const renders: Promise<void>[] = [];
+      for (const markdown of slidesSnapshot) {
+        const page = printDeck.createDiv({ cls: 'jss-print-page' });
+        const surface = owner.addChild(new SlideSurface(this.app, page, 'Export slide'));
+        surfaces.push(surface);
+        renders.push(surface.render(markdown, sourcePath));
+      }
+      await Promise.all(renders);
+      if (this.closed) return;
+
+      await waitForDeckMedia(printDeck, surfaces, win);
+      if (this.closed) return;
+
+      if (webContents) {
+        const pdfData = await webContents.printToPDF({
+          printBackground: true,
+          preferCSSPageSize: true,
+          landscape: false,
+          marginsType: 1,
+        });
+        if (this.closed) return;
+        await this.app.vault.adapter.writeBinary(targetPdfPath, new Uint8Array(pdfData).buffer);
+        notice.hide();
+        const savedFilename = targetPdfPath.split('/').pop() ?? `${sourceBasename}.pdf`;
+        new Notice(`PDF saved: ${savedFilename}`);
+
+        const adapter = this.app.vault.adapter;
+        const fullPath = adapter instanceof FileSystemAdapter ? adapter.getFullPath(targetPdfPath) : '';
+        if (fullPath) electron?.remote?.shell?.openPath(fullPath);
+      } else {
+        notice.hide();
+        delegatedPrint = true;
+        win.addEventListener('afterprint', () => {
+          owner.unload();
+          printDeck.remove();
+        }, { once: true });
+        win.print();
+        return;
+      }
+    } catch (error) {
+      console.error('Just Simple Slides:', error);
+      notice.hide();
+      new Notice('Could not export slides to PDF.');
+    } finally {
+      if (!delegatedPrint || this.closed) {
+        owner.unload();
+        printDeck.remove();
+      }
+      this.exporting = false;
+    }
   }
 
   async onClose(): Promise<void> {
