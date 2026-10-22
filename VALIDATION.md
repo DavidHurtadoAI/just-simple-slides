@@ -1,3 +1,24 @@
+# Local validation — 0.2.7
+
+Checked on 22 October 2026 in actual Obsidian on Windows, using this project's disposable `qa/vault` and isolated application profile. The file safety, tab reuse, and compact sorter changes are packaged as version 0.2.7.
+
+The 0.2.6 baseline reproduced a destructive lifecycle interval: after `save(true)` delegated to a native editor and cleared the slide buffer, removing the other save owners and invoking a late save wrote **0 bytes over a 100-byte note**. The cleared slide view still held its file reference and saved-file baseline. This proves the faulty save path; it does not establish which historical file losses used it.
+
+The fix marks loading/closing/cleared slide views as unavailable for saving and synchronization, ignores native unload events, and serializes slide buffer saves so closing waits for an older save and then flushes the newest edits. The buffer is only cleared after a successful write. Repeated invocations find and focus the existing slide tab, including deferred restored tabs; invocations for the same file are serialized while opening.
+
+`npm run check` passed: **67 unit tests**, zero lint warnings, CSS compatibility, strict TypeScript, production build, and packaging. The 14 new lifecycle tests run the actual bundled plugin/view against a model of Obsidian's load/save/clear behavior, including delayed/failed writes, close during loading, native unload versus intentional deletion, reuse, and concurrent opens.
+
+Actual Obsidian regression results, all with zero runtime errors:
+
+- `scripts/qa-file-safety.mjs`: **14 checks**. Eight concurrent source invocations reuse one tab; reinvoking presentation reuses the current player. Notes editing/undo, native close, a late autosave after delegated close, closing the last slide tab, and a deliberately delayed save all preserve the intended complete Markdown. The former destructive interval now preserves the file. Sorter gaps measure 14px on desktop and 12px in a narrow window.
+- `scripts/qa-save-order.mjs`: **8 checks**. Delayed older saves do not overwrite newer undo/normalization; external updates still reach native, reading-mode, and slide-only views. Legacy duplicate slide tabs are created explicitly for regression coverage.
+- `scripts/qa-obsidian.mjs`: **99 checks**. Notes, source navigation and native selection/history, slide operations, privacy, CRLF, autosave, keyboard presentation/fullscreen, closing native/slide tabs independently, and native editor reuse in a floating window.
+- `scripts/qa-sorter.mjs`: **40 checks**. 102-slide grid, drag across rows, exact source preservation, undo/redo, cancellation, auto-scroll, responsive sizing, source synchronization, presentation, and floating-window editing/dragging. Light/dark sorter screenshots were inspected.
+
+The native editor navigation test waits for editor focus after asynchronous opening; native close uses the tab's close button. The private notes panel remains a small plain Markdown editor. Live Preview remains available through **Edit source**.
+
+Installed the tested build into `../../.obsidian/plugins/just-simple-slides`, with the previous three plugin files backed up in `qa/installed-before-file-safety`. Installed `main.js`, `manifest.json`, and `styles.css` each match `dist/` by SHA-256; hashes are in `qa/file-safety-installation.json`. No non-QA Markdown notes were edited.
+
 # Local validation — 0.2.6
 
 Checked on 18 October 2026, Windows desktop, in the actual Obsidian application with an isolated vault and application profile.

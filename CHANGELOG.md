@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.7
+
+- Prevent a late save from writing the empty buffer of a cleared or closing slide view. Only fully loaded views can save or own document synchronization; native editor unload events no longer propagate their cleared content.
+- Wait for in-flight slide saves before flushing the final edits on close. Clear a closing view only after saving succeeds, and never clear a different file loaded during an earlier save.
+- Reuse the existing slide tab for the same Markdown file, including restored tabs and tabs in other windows. Serialize repeated invocations so they cannot create duplicates while a tab loads.
+- Reduce slide sorter gaps from 22px to 14px on desktop and from 16px to 12px in narrow windows, with matching drag insertion markers.
+
 ## 0.2.6
 
 - Add a subtle **2px progress bar** at the bottom of presentation mode. The current slide's position fills the bar smoothly, reaching 100% on the last slide and moving back when navigating to earlier slides. It uses the theme accent at low opacity, stays visible while controls fade, and respects system reduced motion.

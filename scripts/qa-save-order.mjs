@@ -30,7 +30,10 @@ try {
     if (file) await app.vault.modify(file, source); else file = await app.vault.create('Save order QA.md', source);
     await plugin.open(file); globalThis.jssSaveFirst = app.workspace.activeLeaf;
     globalThis.jssSaveNative = app.workspace.getLeavesOfType('markdown').find(l => l.view.file === file);
-    await app.workspace.revealLeaf(jssSaveNative); await plugin.open(file); globalThis.jssSaveSecond = app.workspace.activeLeaf;
+    // Older saved workspaces can still restore duplicate slide tabs. Create one
+    // explicitly: normal plugin invocations now reuse the existing tab.
+    globalThis.jssSaveSecond = app.workspace.getLeaf('tab');
+    await jssSaveSecond.setViewState({ type: 'just-simple-slides', state: { file: file.path }, active: true });
   }, source);
   await page.evaluate(async () => {
     const v = jssSaveFirst.view;
