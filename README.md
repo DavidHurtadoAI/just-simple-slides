@@ -19,7 +19,7 @@ Markdown is the perfect format for content: plain text, easy to edit, easy to re
 ## Start here
 
 1. Open a Markdown note.
-2. Run **Just Simple Slides: Edit as slides**, click the presentation ribbon icon, or right-click the note and choose **Edit as slides**. The slide view opens in a new tab, keeping your Markdown editor, selection, and undo history in place.
+2. Run **Just Simple Slides: Edit as slides**, click the presentation ribbon icon, or right-click the note and choose **Edit as slides**. The first invocation opens a slide tab, keeping your Markdown editor, selection, and undo history in place. Further invocations for that file focus the existing slide tab, including in another window or after restoring the workspace. **Start presentation** reuses it too.
 3. Pick a thumbnail on the left. Click **Edit source** to focus the existing Markdown editor at that slide, including in another Obsidian window. If the note was closed, a new Markdown tab opens. Select a private `[!slide]` area below the preview to edit its notes. You can also move or split the tabs using Obsidian's normal window controls.
 4. Click **Present**, press **F5**, or run **Just Simple Slides: Start presentation**.
 5. Press **Esc** to return to the same slide. Close the Just Simple Slides tab with its native **×** or **Ctrl/Cmd+W** when finished; your Markdown tab stays open.
@@ -136,6 +136,8 @@ This is visible content.
 We recommend keeping the slide type and presenter notes together in one area, as above. This is a convention: the plugin does not interpret the name, type, or any other field. Write any Markdown you need. The name, body, type, and entire callout are all optional. A slide can have no private areas or as many as you want.
 
 The lower editor contains only private areas: one selector for each `[!slide]` callout in that slide, in source order. A callout's optional name appears only in its selector, apart from the Markdown source. Unnamed areas use **Area 1**, **Area 2**, and so on; repeated names remain separate selectors. Use Left/Right, Home, or End on the selectors to switch areas. The row scrolls when needed.
+
+Private notes use a small plain Markdown editor, so formatting markers such as `**bold**` stay visible. Use **Edit source** to work in Obsidian's native editor with Live Preview.
 
 If the slide has no private areas, click **Create slide notes** in the lower panel. It appends an empty `> [!slide] Slide notes` callout at the end of the selected slide, leaving a blank line before the next `---`. The new **Slide notes** area opens with keyboard focus, ready to write. The same change appears in the original Markdown note and other open slide tabs. **Ctrl/Cmd+Z** undoes creation in one step. The button appears only while that slide has no `[!slide]` callouts; existing areas keep their usual selectors.
 

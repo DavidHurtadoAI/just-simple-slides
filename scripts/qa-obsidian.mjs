@@ -19,7 +19,7 @@ const tabs=()=>page.getByRole('tablist',{name:'Slide editor areas'}).getByRole('
 const area=()=>page.locator('.jss-editor .cm-content');
 const editSource=async()=>{
   await click('Edit selected slide in Markdown');
-  await page.waitForFunction(()=>app.workspace.activeLeaf?.view.getViewType()==='markdown');
+  await page.waitForFunction(()=>app.workspace.activeLeaf?.view.getViewType()==='markdown'&&app.workspace.activeLeaf.view.editor?.hasFocus());
 };
 const atSelectedSlide=()=>page.evaluate(()=>{
   const view=jssSlidesTestLeaf.view,slide=view.deck.slides[view.index],editor=app.workspace.activeLeaf.view.editor;
@@ -91,7 +91,9 @@ try {
 
   await native();
   await page.evaluate(async()=>{await app.plugins.plugins['just-simple-slides'].open(jssNativeTestLeaf.view.file);globalThis.jssSecondSlidesLeaf=app.workspace.activeLeaf;});
-  check('opening the same Markdown again creates another slide tab',await page.evaluate(()=>jssSecondSlidesLeaf!==jssSlidesTestLeaf&&jssSecondSlidesLeaf!==jssNativeTestLeaf&&app.workspace.getLeavesOfType('just-simple-slides').length===2));
+  check('opening the same Markdown again reuses the existing slide tab',await page.evaluate(()=>jssSecondSlidesLeaf===jssSlidesTestLeaf&&app.workspace.getLeavesOfType('just-simple-slides').length===1));
+  // Still cover duplicate tabs restored from older workspaces.
+  await page.evaluate(async()=>{globalThis.jssSecondSlidesLeaf=app.workspace.getLeaf('tab');await jssSecondSlidesLeaf.setViewState({type:'just-simple-slides',state:{file:jssNativeTestLeaf.view.file.path},active:true});});
   await page.locator('.workspace-leaf.mod-active .jss-editor .cm-content').click();
   await page.keyboard.press('Control+End');await page.keyboard.insertText(' SECOND_TAB_PRIVATE');
   check('two slide tabs and the native editor share unsaved area edits',await page.evaluate(()=>jssSlidesTestLeaf.view.getViewData().includes('SECOND_TAB_PRIVATE')&&jssSlidesTestLeaf.view.getViewData()===jssSecondSlidesLeaf.view.getViewData()&&jssNativeTestLeaf.view.editor.getValue()===jssSecondSlidesLeaf.view.getViewData()));
@@ -302,8 +304,8 @@ try {
   check('a newly opened slide tab follows the native cursor',(await state()).index===4);
   await page.keyboard.press('F5');await page.waitForSelector('.jss-presentation .jss-slide');check('F5 presents the current slide',await page.locator('.jss-player-counter').innerText()==='5 / 6');await page.keyboard.press('Escape');await page.waitForSelector('.jss-presentation',{state:'detached'});
 
-  await native();await page.evaluate(async()=>{await app.plugins.plugins['just-simple-slides'].open(jssNativeTestLeaf.view.file);globalThis.jssSecondSlidesLeaf=app.workspace.activeLeaf;});
-  await native();await page.keyboard.press('Control+w');await pause(250);
+  await native();await page.evaluate(async()=>{globalThis.jssSecondSlidesLeaf=app.workspace.getLeaf('tab');await jssSecondSlidesLeaf.setViewState({type:'just-simple-slides',state:{file:jssNativeTestLeaf.view.file.path},active:true});});
+  await native();await page.locator('.workspace-tab-header[data-type="markdown"].is-active .workspace-tab-header-inner-close-button').click();await pause(250);
   check('the native note can be closed independently of both slide tabs',await page.evaluate(()=>!app.workspace.getLeavesOfType('markdown').includes(jssNativeTestLeaf)&&app.workspace.getLeavesOfType('just-simple-slides').length===2));
   await page.evaluate(async()=>{await app.workspace.revealLeaf(jssSecondSlidesLeaf);jssSecondSlidesLeaf.view.focusEditor();});
   await page.keyboard.press('Control+End');await page.keyboard.insertText(' SLIDES_ONLY_EDIT');await pause(100);

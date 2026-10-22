@@ -1,4 +1,4 @@
-import { Component, MarkdownView, Notice, Scope, setIcon, TextFileView, type WorkspaceLeaf } from 'obsidian';
+import { Component, MarkdownView, Notice, Scope, setIcon, TextFileView, type TFile, type WorkspaceLeaf } from 'obsidian';
 import { EditorState, Text } from '@codemirror/state';
 import { drawSelection, EditorView, keymap, lineNumbers, placeholder } from '@codemirror/view';
 import { defaultKeymap, indentWithTab } from '@codemirror/commands';
@@ -64,6 +64,10 @@ export class SlidesView extends TextFileView {
   // TextFileView.data belongs to Obsidian's saved-file lifecycle. Keep the editable
   // buffer separate: core assigns data before calling setViewData on external reloads.
   private source = '';
+  private loadedFile: TFile | null = null;
+  private unloading = false;
+  private loadVersion = 0;
+  private bufferSave: Promise<void> = Promise.resolve();
 
   constructor(leaf: WorkspaceLeaf, private plugin: JustSimpleSlides) {
     super(leaf);
@@ -83,32 +87,67 @@ export class SlidesView extends TextFileView {
   getIcon(): string { return PLUGIN_ICON; }
   getViewData(): string { return this.source ?? ''; }
 
-  async save(clear = false): Promise<void> {
-    if (!this.file) return;
-    const writer = this.savingView(clear);
-    if (writer !== this) {
-      // One open buffer owns saving. A closing slide tab hands off to a surviving
-      // editor so its pending save cannot later restore stale notes.
-      if (writer instanceof SlidesView) await writer.saveBuffer();
-      else await writer.save();
-      if (clear) this.clear();
-    } else await this.saveBuffer(clear);
+  isFileLoaded(file = this.file): boolean {
+    return !!file && this.loadedFile === file && !this.unloading && !this.closed;
   }
 
-  private saveBuffer(clear = false): Promise<void> { return super.save(clear); }
+  async onLoadFile(file: TFile): Promise<void> {
+    const version = ++this.loadVersion;
+    this.loadedFile = null;
+    this.unloading = false;
+    await super.onLoadFile(file);
+    if (version === this.loadVersion && this.file === file && !this.unloading && !this.closed) this.loadedFile = file;
+  }
+
+  async save(clear = false): Promise<void> {
+    const file = this.file;
+    const version = this.loadVersion;
+    const loaded = this.isFileLoaded();
+    // Invalidate the view before awaiting another writer. Pending autosaves and
+    // other closing tabs must never select its cleared buffer as their writer.
+    if (clear) this.unloading = true;
+    if (!loaded) return;
+    const writer = this.savingView(clear);
+    try {
+      if (writer !== this) {
+        // One open buffer owns saving. A closing slide tab hands off to a surviving
+        // editor so its pending save cannot later restore stale notes.
+        if (writer instanceof SlidesView) await writer.saveBuffer();
+        else await writer.save();
+      } else await this.saveBuffer();
+    } catch (error) {
+      if (this.file === file && this.loadVersion === version) this.unloading = false;
+      throw error;
+    }
+    // A delegated save must not clear a different file loaded during its await.
+    if (clear && this.file === file && this.loadVersion === version) this.clear();
+  }
+
+  private saveBuffer(): Promise<void> {
+    const file = this.file, version = this.loadVersion;
+    // Core returns immediately if another save is in flight. Wait for it so a
+    // final close flushes newer edits too, and only clear after a successful write.
+    const saving = this.bufferSave.catch(() => {}).then(async () => {
+      if (this.file !== file || this.loadedFile !== file || this.loadVersion !== version || this.closed) return;
+      await super.save();
+    });
+    this.bufferSave = saving;
+    return saving;
+  }
 
   private savingView(closing = false): MarkdownView | SlidesView {
     if (!this.file) return this;
     for (const { view } of this.app.workspace.getLeavesOfType('markdown')) {
-      if (view instanceof MarkdownView && view.file === this.file) return view;
+      if (view instanceof MarkdownView && view.file === this.file && typeof view.data === 'string') return view;
     }
     for (const { view } of this.app.workspace.getLeavesOfType(VIEW_TYPE)) {
-      if (view instanceof SlidesView && view.file === this.file && (!closing || view !== this)) return view;
+      if (view instanceof SlidesView && view.isFileLoaded(this.file) && (!closing || view !== this)) return view;
     }
     return this;
   }
 
   setViewData(data: string, clear: boolean): void {
+    if (this.unloading || this.closed) return;
     if (!clear && this.file) {
       const writer = this.savingView();
       // A previous autosave can finish after a newer edit or undo. Other views
@@ -123,10 +162,12 @@ export class SlidesView extends TextFileView {
       if (this.root) { this.loadEditor(); this.refresh(true); }
       // With no native editor, the first slide tab also distributes real disk
       // reloads to followers that may have received the file event before it.
-      if (!clear && this.file && this.savingView() === this) this.plugin.syncDocument(this.file, data, this);
+      if (!clear && this.isFileLoaded() && this.file && this.savingView() === this) this.plugin.syncDocument(this.file, data, this);
     }
   }
   clear(): void {
+    this.loadedFile = null;
+    this.loadVersion++;
     this.source = '';
     this.index = 0;
     this.deck = parseDeck('');
@@ -478,7 +519,7 @@ export class SlidesView extends TextFileView {
         ]),
         EditorView.updateListener.of(update => {
           const slide = this.deck.slides[this.index]!;
-          if (!update.docChanged || this.closed || !slide.areas[this.areaIndex]) return;
+          if (!update.docChanged || !this.isFileLoaded() || !slide.areas[this.areaIndex]) return;
           const selection = update.startState.selection.main;
           this.history.record({ source: this.source, index: this.index, anchor: selection.anchor, head: selection.head, areaIndex: this.areaIndex }, true);
           const markdown = updateSlideArea(slide.markdown, this.areaIndex, update.state.sliceDoc(), this.deck.eol);
@@ -534,6 +575,7 @@ export class SlidesView extends TextFileView {
   }
 
   private commitChange(): void {
+    if (!this.isFileLoaded()) return;
     if (this.file) this.plugin.syncDocument(this.file, this.source, this);
     this.savingView().requestSave();
   }
@@ -545,6 +587,7 @@ export class SlidesView extends TextFileView {
   }
 
   private undo(redo: boolean): void {
+    if (!this.isFileLoaded()) return;
     const next = redo ? this.history.redo(this.snapshot()) : this.history.undo(this.snapshot());
     if (!next) return;
     this.source = next.source;
@@ -558,6 +601,7 @@ export class SlidesView extends TextFileView {
   }
 
   private perform(action: 'add' | 'duplicate' | 'delete' | 'up' | 'down'): void {
+    if (!this.isFileLoaded()) return;
     const next = action === 'add' || action === 'duplicate' ? addSlide(this.source, this.deck, this.index, action === 'duplicate')
       : action === 'delete' ? deleteSlide(this.source, this.deck, this.index)
         : moveSlide(this.source, this.deck, this.index, action === 'up' ? -1 : 1);
@@ -573,7 +617,7 @@ export class SlidesView extends TextFileView {
   }
 
   private normalizeHeadings(title: string): void {
-    if (this.closed || !this.file) return;
+    if (!this.isFileLoaded()) return;
     const source = normalizeHeadings(this.source, title);
     if (source === this.source) { new Notice('Headings already normalized.'); return; }
     const selection = this.editor?.state.selection.main;
@@ -589,7 +633,7 @@ export class SlidesView extends TextFileView {
 
   private createSlideNotes(): void {
     const slide = this.deck.slides[this.index];
-    if (this.closed || !this.file || !slide || slide.areas.length) return;
+    if (!this.isFileLoaded() || !slide || slide.areas.length) return;
     const markdown = appendSlideNotes(slide.markdown, this.deck.eol);
     if (!readSlideAreas(markdown).length) {
       new Notice('Close the unfinished Markdown block in the source before creating slide notes.');
@@ -606,6 +650,7 @@ export class SlidesView extends TextFileView {
   }
 
   private reorderSlide(from: number, target: number): void {
+    if (!this.isFileLoaded()) return;
     const next = moveSlideTo(this.source, this.deck, from, target);
     if (next.source === this.source) return;
     this.history.record(this.snapshot());
