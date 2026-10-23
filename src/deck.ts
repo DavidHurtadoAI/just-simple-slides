@@ -1,5 +1,6 @@
 import { readSlideAreas, slideCallout, type SlideArea } from './details.ts';
 import { readPresentationTitle, type PresentationTitle } from './presentation-title.ts';
+import { protectedMarkdown } from './markdown-blocks.ts';
 
 export interface Slide {
   start: number;
@@ -27,26 +28,16 @@ export function parseDeck(source: string): Deck {
   if (presentation) prefixEnd = presentation.end;
   const slides: Slide[] = [];
   let start = prefixEnd;
-  let fence = '';
-  let fenceSize = 0;
-  let inComment = false;
+  const protectedRanges = protectedMarkdown(source.slice(prefixEnd));
   for (const match of lines) {
     const offset = match.index;
     if (offset < prefixEnd) continue;
     const line = match[0].replace(/[\r\n]+$/, '');
-    const marker = !inComment && line.match(/^ {0,3}(`{3,}|~{3,})(.*)$/);
-    if (marker) {
-      if (!fence) { fence = marker[1]![0]!; fenceSize = marker[1]!.length; }
-      else if (marker[1]![0] === fence && marker[1]!.length >= fenceSize && !marker[2]!.trim()) fence = '';
-      continue;
-    }
-    if (fence) continue;
-    if (!inComment && /^ {0,3}---[ \t]*$/.test(line)) {
+    if (protectedRanges.some(range => offset - prefixEnd >= range.from && offset - prefixEnd < range.to)) continue;
+    if (/^ {0,3}---[ \t]*$/.test(line)) {
       slides.push(makeSlide(source, start, offset, slides.length));
       start = offset + match[0].length;
     }
-    // Separators in multiline HTML comments belong to that comment.
-    for (const token of line.matchAll(/<!--|-->/g)) inComment = token[0] === '<!--';
   }
   slides.push(makeSlide(source, start, source.length, slides.length));
   return { slides, eol, prefixEnd, presentation };
@@ -59,8 +50,8 @@ function makeSlide(source: string, start: number, end: number, index: number): S
   let previous = '';
   let comment = false;
   for (const line of markdown.split(/\r\n|\n|\r/)) {
-    const marker = line.match(/^ {0,3}(`{3,}|~{3,})/);
-    if (marker) { fence = fence ? (marker[1]![0] === fence[0] && marker[1]!.length >= fence.length ? '' : fence) : marker[1]!; continue; }
+    const marker = line.match(/^ {0,3}(`{3,}|~{3,})(.*)$/);
+    if (marker) { fence = fence ? (marker[1]![0] === fence[0] && marker[1]!.length >= fence.length && !marker[2]!.trim() ? '' : fence) : marker[1]!; continue; }
     if (fence) continue;
     if (comment || line.includes('<!--')) { comment = !line.includes('-->'); continue; }
     const heading = line.match(/^ {0,3}#{1,6}(?:[ \t]+|$)(.*?)(?:[ \t]+#+[ \t]*)?$/);

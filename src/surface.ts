@@ -1,4 +1,7 @@
 import { Component, MarkdownRenderer, type App } from 'obsidian';
+import { prepareDiagrams } from './markdown-blocks';
+import { PeleDiagram } from './diagram';
+import { loadHostPele } from './host-pele';
 
 export const SLIDE_WIDTH = 1600;
 export const SLIDE_HEIGHT = 900;
@@ -15,33 +18,56 @@ export class SlideSurface extends Component {
   private mutation: MutationObserver | null = null;
   private frame = 0;
   private win: NonNullable<Document['defaultView']>;
+  private diagrams: PeleDiagram[] = [];
+  private fitted = false;
+  private disposed = false;
+  private fontDocument: Document;
+  private fontsChanged = (): void => {
+    for (const diagram of this.diagrams) diagram.invalidate();
+    this.scheduleFit();
+  };
 
   constructor(private app: App, host: HTMLElement, private label: string) {
     super();
     this.viewport = host.createDiv({ cls: 'jss-viewport', attr: { 'aria-label': label } });
     this.win = host.ownerDocument.defaultView!;
+    this.fontDocument = host.ownerDocument;
+    this.fontDocument.fonts.addEventListener('loadingdone', this.fontsChanged);
     this.observer = this.observeViewport();
     this.register(() => {
       this.sequence++;
+      this.disposed = true;
+      this.diagrams = [];
       this.finishTransition?.();
       this.observer.disconnect();
       this.mutation?.disconnect();
       this.win.cancelAnimationFrame(this.frame);
+      this.frame = 0;
+      this.fontDocument.fonts.removeEventListener('loadingdone', this.fontsChanged);
       this.viewport.remove();
     });
   }
 
   async render(markdown: string, path: string, transition: 'none' | 'fade' = 'none'): Promise<void> {
+    if (this.disposed) return;
     const sequence = ++this.sequence;
     const component = this.addChild(new Component());
     const next = this.viewport.createDiv({ cls: 'jss-slide markdown-rendered jss-preparing' });
     const source = next.createDiv();
     try {
-      await MarkdownRenderer.render(this.app, markdown, source, path, component);
+      const prepared = prepareDiagrams(markdown, `jss-${this.win.crypto.randomUUID()}`);
+      const pele = prepared.diagrams.length ? await loadHostPele() : null;
+      if (sequence !== this.sequence) { this.removeChild(component); next.remove(); return; }
+      await MarkdownRenderer.render(this.app, pele ? prepared.markdown : markdown, source, path, component);
       if (sequence !== this.sequence) { this.removeChild(component); next.remove(); return; }
       // Use Obsidian's parsed callouts, so folded, nested, and lazy-continuation
       // notes disappear as a whole. Literal examples inside code remain content.
       source.querySelectorAll('.callout[data-callout="slide" i]').forEach(callout => callout.remove());
+      const diagrams: PeleDiagram[] = [];
+      for (const host of source.querySelectorAll<HTMLElement>('.jss-diagram-slot[data-jss-diagram]')) {
+        const block = prepared.diagrams.find(block => block.key === host.dataset.jssDiagram);
+        if (block && pele) diagrams.push(component.addChild(new PeleDiagram(host, block.source, block.key, pele)));
+      }
       // Heading level is deliberately irrelevant. Preserve all later headings as body content.
       const headings = [...source.children].filter(el => /^H[1-6]$/.test(el.tagName));
       const header = next.createDiv({ cls: 'jss-slide-header' });
@@ -59,6 +85,10 @@ export class SlideSurface extends Component {
       for (const child of [...source.childNodes]) {
         if (child.nodeType === 1) {
           const element = child as HTMLElement;
+          if (element.matches('.jss-diagram')) {
+            media.createDiv({ cls: 'jss-media-cell' }).append(element);
+            continue;
+          }
           // Only lift standalone images. Rich mixed blocks, diagrams and embeds remain intact.
           const images = [...element.querySelectorAll('img, .image-embed')];
           if ((element.matches('img, .image-embed') || images.length) && !element.textContent?.trim()
@@ -73,12 +103,16 @@ export class SlideSurface extends Component {
         text.append(child);
       }
       source.remove();
-      const hasText = !!text.textContent?.trim() || !!text.querySelector('svg, canvas, iframe, video, audio, .internal-embed, hr');
+      const hasText = !!text.textContent?.trim() || !!text.querySelector('svg, canvas, iframe, video, audio, .internal-embed, hr, .jss-diagram');
       const hasMedia = !!media.children.length;
       next.dataset.layout = hasMedia ? hasText ? 'split' : 'image' : hasText ? 'text' : 'title';
       if (!hasText) textRegion.remove();
       if (!hasMedia) media.remove();
-      else media.style.setProperty('--jss-media-columns', String(media.children.length > 1 ? 2 : 1));
+      else {
+        // A diagram beside text needs the full visual column for its labels.
+        const columns = hasText && media.querySelector('.jss-diagram') ? 1 : media.children.length > 1 ? 2 : 1;
+        media.style.setProperty('--jss-media-columns', String(columns));
+      }
       if (!hasText && !hasMedia) body.remove();
       if (!headings.length && !hasText && !hasMedia) {
         next.createDiv({ cls: 'jss-empty-slide', text: 'Empty slide' });
@@ -91,6 +125,8 @@ export class SlideSurface extends Component {
       const previousComponent = this.rendered;
       this.rendered = component;
       this.canvas = next;
+      this.diagrams = diagrams;
+      this.fitted = false;
       this.mutation?.disconnect();
       // Includes delayed Markdown postprocessors, resolved local embeds, math and diagrams.
       this.mutation = new MutationObserver(() => this.scheduleFit());
@@ -123,7 +159,9 @@ export class SlideSurface extends Component {
         previous?.remove();
         if (previousComponent) this.removeChild(previousComponent);
       }
-      void next.ownerDocument.fonts.ready.then(() => this.scheduleFit());
+      void next.ownerDocument.fonts.ready.then(() => {
+        if (sequence === this.sequence && !this.disposed) this.fontsChanged();
+      });
     } catch (error) {
       this.removeChild(component);
       next.remove();
@@ -132,12 +170,14 @@ export class SlideSurface extends Component {
   }
 
   scheduleFit(): void {
+    if (this.disposed) return;
+    this.fitted = false;
     this.fitViewport();
     this.queueFit();
   }
 
   private queueFit(): void {
-    if (this.frame) return;
+    if (this.frame || this.disposed) return;
     this.frame = this.win.requestAnimationFrame(() => {
       this.frame = 0;
       this.fit();
@@ -145,22 +185,32 @@ export class SlideSurface extends Component {
   }
 
   private observeViewport(): ResizeObserver {
-    const observer = new this.win.ResizeObserver(() => this.fitViewport());
+    const observer = new this.win.ResizeObserver(() => {
+      this.fitViewport();
+      // Initially hidden slides have never had their content fitted.
+      if (!this.fitted) this.queueFit();
+    });
     observer.observe(this.viewport);
     return observer;
   }
 
   /** Resizing changes only the outer scale; the content always uses 1600 × 900. */
   fitViewport(): void {
+    if (this.disposed) return;
     const win = this.viewport.ownerDocument.defaultView!;
     if (win !== this.win) {
       const pending = !!this.frame;
       this.win.cancelAnimationFrame(this.frame);
       this.frame = 0;
       this.win = win;
+      this.fontDocument.fonts.removeEventListener('loadingdone', this.fontsChanged);
+      this.fontDocument = this.viewport.ownerDocument;
+      this.fontDocument.fonts.addEventListener('loadingdone', this.fontsChanged);
+      for (const diagram of this.diagrams) diagram.invalidate();
+      this.fitted = false;
       this.observer.disconnect();
       this.observer = this.observeViewport();
-      if (pending) this.queueFit();
+      if (pending || this.canvas) this.queueFit();
     }
     const canvas = this.canvas;
     const width = this.viewport.clientWidth;
@@ -176,6 +226,7 @@ export class SlideSurface extends Component {
   }
 
   fit(): void {
+    if (this.disposed) return;
     this.fitViewport();
     const canvas = this.canvas;
     if (!canvas || !this.viewport.clientWidth || !this.viewport.clientHeight) return;
@@ -206,5 +257,10 @@ export class SlideSurface extends Component {
       inner.style.top = `${Math.max(0, (region.clientHeight - inner.scrollHeight * ratio) / 2)}px`;
       canvas.dataset.dense = String(low < 20 || ratio < 0.9);
     } else canvas.dataset.dense = 'false';
+    for (const diagram of this.diagrams) {
+      diagram.fit();
+      if (diagram.dense) canvas.dataset.dense = 'true';
+    }
+    this.fitted = true;
   }
 }
