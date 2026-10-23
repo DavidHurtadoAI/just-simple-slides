@@ -1,3 +1,24 @@
+# Local validation — 0.2.8
+
+Checked on 23 October 2026 in actual Obsidian 1.15.0 (native Pele) and 1.14.5 (without Pele) on Windows, using only this project's disposable `qa/vault` and isolated application profiles. This integration is packaged as 0.2.8 and the minimum Obsidian version remains 1.7.2. No Nexus source presentations were modified.
+
+Pele is **not a dependency and is not bundled or downloaded**. The public `loadMermaid()` API loads Obsidian's local diagram resources; an optional capability check then reads the host's `window.pele` runtime. The tested Obsidian 1.15.0 archive supplies Pele 1.8.0. Missing/failed loading or missing capabilities leave the original Markdown with Obsidian's usual renderer. That global is not part of the public TypeScript API, so absence is handled explicitly rather than requiring Obsidian 1.15 or relying on version numbers.
+
+Mermaid fences are extracted before native rendering only when using Pele, with the existing Lezer parser rather than native Mermaid DOM. Fence lengths, quoted/list code, literal examples, comments, diagram-internal YAML and LF/CRLF/CR line endings are covered. Slide separation and edits preserve original source bytes.
+
+`npm run check` passed: **82 unit tests**, zero lint warnings, the Chromium 114 CSS compatibility gate, strict TypeScript, production build and packaging. The 15 Mermaid tests cover source extraction/separation, adjacent Markdown formatting, the host adapter's options/measurement contract, optional capability detection, unavailable/failed loads, incompatible results, private notes, positioned errors and palette contrast. A packaging regression verifies there is no Pele dependency and the minimum remains 1.7.2. Real diagram rendering is tested in Obsidian below.
+
+Actual Obsidian results, all with zero runtime errors:
+
+- `scripts/qa-pele.mjs`: **52 checks** on Obsidian 1.15.0, including identity equality with Obsidian's own Pele object. Nine-slide fixture with the existing SVG illustration, text plus diagram/image, flow with internal YAML, sequence, XY chart, multiple diagrams, invalid syntax, literal code, private notes and a local video. Checked editor, thumbnails, sorter and player; fixed logical geometry through thumbnail/window resizing; actual fullscreen; light/dark themes; measured and displayed fonts; a real floating window; keyboard navigation with diagram zoom disabled; and formatting/privacy immediately after fences, including quotes and lists.
+- The same suite checks valid/error transitions without stale SVGs, superseded asynchronous renders, unique IDs across simultaneous previews, initially hidden surfaces, font changes while hidden, observer/font-listener cleanup, and a fresh plugin reload offline. Local images, video and diagrams load offline without HTTP requests. Viewing and presenting leave the Markdown fixture byte-for-byte unchanged.
+- `scripts/qa-pele-optional.mjs`: **11 checks** on Obsidian 1.14.5 with no Pele global, offline. Verified plugin loading, the unchanged minimum version, local images, Markdown formatting, private notes, no Pele placeholders/errors, native Mermaid output/source fallback, player navigation and byte-for-byte preservation, with no HTTP requests. Native rendering retains Obsidian's existing permissions and behavior.
+- Existing `scripts/qa-obsidian.mjs` (**99**), `scripts/qa-sorter.mjs` (**40**), `scripts/qa-file-safety.mjs` (**14**) and `scripts/qa-save-order.mjs` (**8**) passed again: **161 regression checks**, including source/notes editing, undo, saving, tab reuse, media, dragging and floating windows.
+
+Inspected editor captures of mixed content, sequence, XY, multiple diagrams and syntax errors, plus light/dark and floating-window captures. Reports, logs and screenshots are in ignored `qa/pele-*` files. All **40** Mermaid examples from the read-only Nexus catalog also rendered successfully at two logical widths using Pele extracted from the local Obsidian 1.15.0 archive (**80** Node render smoke checks); this is not a visual audit of every catalog example and the extracted engine is not shipped with the plugin.
+
+Real limits: diagram zoom and embedded Mermaid links/images are disabled; ordinary Markdown media continue to work. External icon/math resolvers are not configured. Explicit author colors can override theme colors, and very dense diagrams may require splitting into slides. Mermaid introduced later by another plugin's embed/postprocessor uses that component's renderer. This checkout has no export implementation to exercise. See `README.md` and `demo/Pele diagrams.md` for authoring and the reproducible fixture.
+
 # Local validation — 0.2.7
 
 Checked on 22 October 2026 in actual Obsidian on Windows, using this project's disposable `qa/vault` and isolated application profile. The file safety, tab reuse, and compact sorter changes are packaged as version 0.2.7.

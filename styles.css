@@ -123,6 +123,11 @@
 .jss-slide.markdown-rendered .jss-media .jss-media-cell img { display: block; width: 100%; height: 100%; max-width: 100%; max-height: 100%; object-fit: contain; border-radius: var(--radius-m); }
 .jss-slide.markdown-rendered .image-embed { padding: 0; background: transparent; }
 .jss-slide.markdown-rendered .jss-text img, .jss-slide.markdown-rendered .jss-text svg { max-width: 100%; height: auto; }
+/* Diagram sizes are logical slide pixels, independent of outer viewport scale. */
+.jss-diagram { width: 100%; height: 100%; min-width: 0; min-height: 0; overflow: hidden; font-family: var(--font-text); font-size: 32px; font-weight: 400; --pele-font: var(--font-text); --pele-font-mono: var(--font-monospace); --pele-bg: var(--background-primary); --pele-fg: var(--text-normal); --pele-muted: var(--text-muted); --pele-line: var(--text-normal); --pele-surface: var(--background-secondary); --pele-surface-alt: var(--background-secondary-alt); --pele-border: var(--text-muted); --pele-accent: var(--text-accent); --pele-critical: var(--text-error); --pele-error: var(--text-error); --pele-title-weight: 700; --pele-heading-weight: 700; --pele-bold-weight: 700; }
+.jss-text .jss-diagram { height: 380px; margin: 0.5em 0; }
+.jss-slide.markdown-rendered .jss-diagram > svg { display: block; width: 100%; height: 100%; max-width: none; max-height: none; }
+.jss-slide.markdown-rendered .jss-diagram-error > pre { box-sizing: border-box; width: 100%; max-height: 100%; overflow: auto; margin: 0; padding: 20px; border: 1px solid var(--text-error); border-radius: var(--radius-s); background: var(--background-secondary); color: var(--text-normal); font-family: var(--font-text); font-size: 24px; line-height: 1.35; white-space: pre-wrap; overflow-wrap: anywhere; }
 .jss-slide.markdown-rendered .heading-collapse-indicator, .jss-slide.markdown-rendered .collapse-indicator, .jss-slide.markdown-rendered .copy-code-button, .jss-slide.markdown-rendered .edit-block-button, .jss-slide.markdown-rendered .metadata-container { display: none; }
 .jss-slide[data-layout="title"] { justify-content: center; }
 .jss-slide[data-layout="title"] .jss-slide-header { text-align: center; }

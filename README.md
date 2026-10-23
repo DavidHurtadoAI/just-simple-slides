@@ -12,7 +12,7 @@ Markdown is the perfect format for content: plain text, easy to edit, easy to re
 
 **Just Simple Slides fills that gap.** See the slides, reorder the story, and keep private notes below the preview. Edit your content in Obsidian's native Markdown editor, which stays open in its own tab. Both views share the same ordinary Markdown file. The layout adjusts automatically.
 
-[Download the latest release](https://github.com/DavidHurtadoAI/just-simple-slides/releases/latest) · [Installation](#installation) · [Slide sorter](#see-the-whole-presentation) · [Normalize headings](#normalize-headings) · [Markdown format](#markdown-format)
+[Download the latest release](https://github.com/DavidHurtadoAI/just-simple-slides/releases/latest) · [Installation](#installation) · [Slide sorter](#see-the-whole-presentation) · [Normalize headings](#normalize-headings) · [Markdown format](#markdown-format) · [Mermaid diagrams](#mermaid-diagrams)
 
 ![Native Markdown and Just Simple Slides tabs, with thumbnails, automatic text-and-image layout, and private notes](assets/editor.png)
 
@@ -115,6 +115,35 @@ Some **Markdown** text.
 - Lists, tables, code, callouts, math, and other Markdown rendered by Obsidian remain content. Preview task checkboxes are read-only.
 - Edits retain the original file's frontmatter and untouched slide content. When the native editor saves, its newline convention applies. There is no sidecar format or conversion.
 
+## Mermaid diagrams
+
+Write a standard Mermaid fence in the slide, alongside ordinary text and existing images:
+
+````md
+## Review before publishing
+
+- Keep the explanation in Markdown.
+
+```mermaid
+flowchart LR
+  Draft --> Review --> Ready
+```
+
+![[illustration.png]]
+````
+
+Pele is **optional and supplied by Obsidian**. Just Simple Slides does not install, download or bundle Pele and keeps its minimum Obsidian version at **1.7.2**. After Obsidian's public diagram loader resolves, the plugin checks whether the host exposes the required Pele capabilities. If it does, slides use that engine; otherwise the original Markdown goes through Obsidian's usual renderer, without requiring an update or blocking the presentation. Obsidian 1.15 includes Pele; older versions retain their existing diagram behavior and permissions. Syntax support follows the engine supplied by your installed Obsidian. See [Pele's syntax compatibility](https://pele.run/compatibility).
+
+Rendering uses local Obsidian resources and needs no CDN or Internet connection. The host's optional `window.pele` runtime is checked defensively because it is not declared in the public TypeScript API. If that integration point changes, the plugin falls back to native Markdown rendering. This does not change Obsidian's native editor or its own diagram renderer.
+
+With host Pele available, diagrams are visual resources. A title and diagram use the full visual region; text and diagrams share columns. Multiple visuals use a grid, with diagrams beside text taking the full width of the visual column to keep labels readable. Images keep their existing rendering. See [the mixed demo](demo/Pele%20diagrams.md) for a flow, sequence, XY chart, multiple diagrams, a literal code example, and a deliberate syntax error. The layout and interaction details below apply to this optional Pele renderer; the native fallback retains Obsidian's own behavior.
+
+Diagram layout uses the slide's logical 1600 × 900 canvas. Thumbnails, floating windows, the editor and the player scale that same layout, preserving the author's direction. Labels use the theme's text font for both measurement and display; font loads and changes trigger measurement again. Colors follow the theme, with contrast-adjusted chart series. Explicit colors written inside a diagram stay the author's choice.
+
+Syntax errors show a message and source position when available, without stopping the rest of the presentation or retaining the previous diagram. Fences and diagram-internal YAML stay inside their slide. Presenter notes remain private, including Mermaid fences inside `[!slide]` callouts. Viewing never rewrites the source.
+
+Zoom is deliberately disabled on slide surfaces, preserving the player's keyboard navigation and read-only controls. Diagram links and diagram-internal images are disabled; ordinary Markdown images and videos keep working. Custom icon and math resolvers are not included. Very large diagrams can still become small: the existing dense-slide indicator helps identify slides to split. Mermaid introduced later by a separate embed or another Markdown postprocessor is handled by that component, rather than intercepted from this slide's source.
+
 ## Private slide areas
 
 An optional [Obsidian callout](https://obsidian.md/help/callouts) creates a private editing area:
@@ -175,7 +204,7 @@ Requires **Obsidian 1.7.2 or later**.
 
 The plugin is published on GitHub and is not yet listed in Obsidian's Community Plugins directory. From 0.1.6, releases contain only the three files Obsidian installs. Each file is built and signed with GitHub artifact attestations; verify a download with `gh attestation verify main.js --repo DavidHurtadoAI/just-simple-slides` (and likewise for the other files).
 
-Copy both files from `demo/` to a vault to try the six-slide example.
+Copy a Markdown example from `demo/` and `demo/slides-demo.svg` to a vault to try it. The original example has six slides; `Pele diagrams.md` demonstrates mixed media and Mermaid.
 
 ## Minimal by design
 

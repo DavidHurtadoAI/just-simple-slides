@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.8
+
+- Use Obsidian's own Pele runtime when available, without installing or bundling Pele or increasing the minimum Obsidian version (1.7.2). Fall back to native Markdown rendering when the optional host engine is unavailable. Extract genuine Mermaid fences before rendering with Pele, preserving literal examples, nested fences, comments, private notes, line endings and diagram-internal frontmatter.
+- Compose diagrams as visual resources alongside text and existing images. Use the same logical geometry in editor, thumbnails, sorter, player and floating windows, retaining authored direction and matching measured/displayed fonts.
+- Follow theme colors with readable chart series, show diagram errors as text without stale SVGs, isolate SVG IDs, and refresh hidden/font-changing surfaces with complete observer cleanup. Keep diagram zoom and network resources disabled.
+
 ## 0.2.7
 
 - Prevent a late save from writing the empty buffer of a cleared or closing slide view. Only fully loaded views can save or own document synchronization; native editor unload events no longer propagate their cleared content.
