@@ -10,9 +10,9 @@ PowerPoint is the best tool for slide design. But for developing the content —
 
 Markdown is the perfect format for content: plain text, easy to edit, easy to reuse, and yours to keep. What was missing was a visual editor for working with that content as a presentation.
 
-**Just Simple Slides fills that gap.** See the slides, reorder the story, and keep private notes below the preview. Edit your content in Obsidian's native Markdown editor, which stays open in its own tab. Both views share the same ordinary Markdown file. The layout adjusts automatically.
+**Just Simple Slides fills that gap.** See the slides, reorder the story, and keep private notes below the preview. Make small title/subtitle changes directly in the slide editor; edit the full content in Obsidian's native Markdown editor, which stays open in its own tab. Both views share the same ordinary Markdown file. The layout adjusts automatically.
 
-[Download the latest release](https://github.com/DavidHurtadoAI/just-simple-slides/releases/latest) · [Installation](#installation) · [Slide sorter](#see-the-whole-presentation) · [Normalize headings](#normalize-headings) · [Markdown format](#markdown-format) · [Mermaid diagrams](#mermaid-diagrams)
+[Download the latest release](https://github.com/DavidHurtadoAI/just-simple-slides/releases/latest) · [Installation](#installation) · [Slide sorter](#see-the-whole-presentation) · [Edit titles and subtitles](#edit-titles-and-subtitles) · [Normalize headings](#normalize-headings) · [Markdown format](#markdown-format) · [Mermaid diagrams](#mermaid-diagrams)
 
 ![Native Markdown and Just Simple Slides tabs, with thumbnails, automatic text-and-image layout, and private notes](assets/editor.png)
 
@@ -46,6 +46,24 @@ Use **Left/Right** to select adjacent slides, **Up/Down** to move by a visible g
 
 ![Slide sorter with a responsive grid, selected slide, and thumbnail size control](assets/sorter.png)
 
+## Edit titles and subtitles
+
+Small heading changes stay in **Slide editor**. Double-click the title or subtitle in the preview, or click the small pencil beside **Slide preview**. Its two-item menu offers **Edit title / Edit subtitle**, or **Add** when that heading is absent. Only one single-line field opens at a time.
+
+![One compact title field with save, remove and cancel controls, inside the slide preview](assets/heading-edit-light.png)
+
+- **Enter**, **Ctrl/Cmd+S**, or the checkmark confirms the change. **Esc** or the cross cancels it. Typing alone does not change the file.
+- The trash button removes that heading; confirming an empty field does the same. Title and subtitle are independent: removing either leaves the other in its original role and keeps later headings in the body. The pencil lets you add either one again.
+- **Ctrl/Cmd+Z** undoes a confirmed edit, addition or removal in one step. Inside the field it undoes typing; cursor keys edit the text and F5 does not start the player.
+
+The field accepts inline Markdown such as `**bold**` and links. Existing heading levels, spacing and Setext underlines are retained; new titles use `##` and new subtitles use `###`. Only the selected heading changes. Body text, media, Mermaid, private notes, frontmatter and the separate presentation title remain outside this editor. Thumbnails and the native Markdown tab update together. Sorter thumbnails and the presentation remain read-only. Headers supplied as raw HTML or by another postprocessor retain their existing appearance; the pencil offers **Edit headings in source** when their source cannot be mapped safely.
+
+To prevent another heading from moving into a removed slot, deletion leaves a small invisible HTML comment, `<!-- just-simple-slides:empty-heading -->`, at that position. Restoring the heading replaces the comment. Keep these comments when editing the source to retain independent missing titles/subtitles; no sidecar or custom file format is involved.
+
+Confirm or cancel before leaving the slide; switching slides/views or closing the tab discards an unconfirmed field. If the source changes while a field is open, saving is refused with a short message and the draft stays available to copy. Cancel and reopen to read the latest source.
+
+Also checked in [dark mode](assets/heading-edit-dark.png), with [only a subtitle](assets/heading-subtitle-only.png), and in a [narrow floating window](assets/heading-edit-floating.png).
+
 ## Normalize headings
 
 **This is a file-wide editing command.** Applying it rewrites the heading levels across **every slide in the current Markdown file**, regardless of which slide is selected. It also adds or updates a separate presentation title. The changes are saved to your original note and appear in Obsidian's native Markdown editor.
@@ -59,8 +77,8 @@ Use **Left/Right** to select adjacent slides, **Up/Down** to move by a visible g
 The resulting outline uses:
 
 - One independent **H1** for the presentation, outside the slides.
-- **H2** for the first heading in every slide.
-- **H3** for its second heading, when present.
+- **H2** for each slide's title, when present.
+- **H3** for its subtitle, when present. Independently removed slots stay empty.
 - Later body headings use **H4–H6**, keeping their relative depth where Markdown's six levels allow it.
 
 **Ctrl/Cmd+Z undoes the entire operation in one step**; redo works too. Repeating normalization with the same title makes no further changes or extra undo step. Applying a different presentation title updates the existing H1.
@@ -108,7 +126,7 @@ Some **Markdown** text.
 ```
 
 - A line containing `---` separates slides, outside fenced code or HTML comments. A standard YAML block at the start remains frontmatter.
-- The first heading, at any level, becomes the title. The second becomes the subtitle. Later headings stay in the body. A heading is optional.
+- The first top-level Markdown heading, at any level, becomes the title. The second becomes the subtitle. Later headings stay in the body. A heading is optional; removed slots retain their position so another heading is never promoted by deletion.
 - Text alone uses the available width. Standalone images alone appear large and centered. Text and standalone images share two columns. Multiple standalone images form a grid.
 - Local Obsidian image embeds and standard Markdown images use Obsidian's Markdown renderer. Inline images inside rich blocks stay in their original block.
 - Images preserve their complete aspect ratio. Text and long titles shrink to fit the fixed 16:9 slide. Dense content remains visible but can become small; the editor identifies dense slides.

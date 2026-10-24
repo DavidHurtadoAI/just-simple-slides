@@ -1,3 +1,23 @@
+# Local validation — 0.2.9
+
+Checked on 24 October 2026 in actual Obsidian 1.15.0 and 1.14.5 on Windows, only in the project's disposable `qa/vault` and isolated profiles. The minimum Obsidian version remains 1.7.2; Pele is still optional and supplied by the host. No development-vault or Nexus Markdown files were changed.
+
+`npm run check` passed **97 unit tests**, zero lint warnings, Chromium 114 CSS compatibility, strict TypeScript, production build and packaging. The 15 new source-edit tests cover title/subtitle edits and independent removal/restoration, H2/H3 creation, existing levels/closing markers/inline Markdown, Setext, LF/CRLF/CR, missing final newlines, protected code/comments/HTML/math/notes, independent presentation metadata, source-byte preservation, literal placeholder examples, normalization, duplicate/reorder and undo. No new dependency was added.
+
+`scripts/qa-heading-edit.mjs` passed **38 checks on each host (76 total)**, offline, with no HTTP resources or runtime errors. Verified real double-click and pencil-menu interaction, one single-line field, add/edit/remove, Enter/Ctrl+S confirmation, Escape cancellation, native input undo, cursor keys and F5 isolation, native Markdown synchronization, thumbnail updates, one-step document undo/redo and unchanged no-op saves. Checked subtitle-only and image-only slides, retained body headings, legacy heading levels, Setext, stale drafts after native edits, owned UI cleanup, clean heading-link metadata, read-only sorter/player, Mermaid with/without Pele, narrow floating windows, saving with no native editor, closing the last slide tab with a pending draft and a late save. Confirmed the saved file contains exactly the intended edits, retaining frontmatter, the separate presentation title, private notes, images and diagram source. HTML headers preserve their existing composition and remain outside the small editor when they cannot be mapped safely.
+
+Existing real-app suites also passed against this build, with zero runtime errors:
+
+- Editor/presentation: **99**; 102-slide sorter: **40**; file safety: **14**; save order: **8**.
+- Global heading normalization, including floating dialogs, native source and undo: **26**.
+- Optional native Pele integration: **52**; older-host fallback without Pele: **11**.
+
+That is **326 actual-app checks**, in addition to the unit/static/build checks. Reports and logs are in ignored `qa/0.2.9-*`, `qa/heading-edit-*-results.json`, `qa/headings-results.json` and the existing suite reports. Inspected and published four real-app screenshots in `assets/heading-edit-light.png`, `assets/heading-edit-dark.png`, `assets/heading-subtitle-only.png` and `assets/heading-edit-floating.png`.
+
+One initial run immediately after switching application profiles recorded three `illegal access` page errors without a stack, after all functional/source-integrity assertions passed. They did not reproduce in an instrumented run, a second repeat or a fresh application startup; all three completed the full 38-check suite with no runtime errors. The original failure and subsequent logs are retained in `qa/`.
+
+The UI intentionally edits only mapped top-level Markdown title/subtitle slots. A confirmed blank field removes its heading; an invisible `just-simple-slides:empty-heading` HTML comment reserves that role so subtitle/body headings do not move up. Restoring replaces the marker. A source change while editing blocks the stale save and retains the draft for copying; cancelling and reopening reads the new source. Leaving the slide/view or closing the tab discards an unconfirmed field. Windows desktop was exercised; mobile was not live-tested.
+
 # Local validation — 0.2.8
 
 Checked on 23 October 2026 in actual Obsidian 1.15.0 (native Pele) and 1.14.5 (without Pele) on Windows, using only this project's disposable `qa/vault` and isolated application profiles. This integration is packaged as 0.2.8 and the minimum Obsidian version remains 1.7.2. No Nexus source presentations were modified.

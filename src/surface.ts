@@ -2,6 +2,7 @@ import { Component, MarkdownRenderer, type App } from 'obsidian';
 import { prepareDiagrams } from './markdown-blocks';
 import { PeleDiagram } from './diagram';
 import { loadHostPele } from './host-pele';
+import { headingSlots, prepareSlideHeadings } from './slide-headings';
 
 export const SLIDE_WIDTH = 1600;
 export const SLIDE_HEIGHT = 900;
@@ -26,6 +27,10 @@ export class SlideSurface extends Component {
     for (const diagram of this.diagrams) diagram.invalidate();
     this.scheduleFit();
   };
+
+  get headingsEditable(): boolean {
+    return this.canvas?.dataset.headingEditing === 'true' && !this.viewport.querySelector('.jss-preparing');
+  }
 
   constructor(private app: App, host: HTMLElement, private label: string) {
     super();
@@ -55,10 +60,12 @@ export class SlideSurface extends Component {
     const next = this.viewport.createDiv({ cls: 'jss-slide markdown-rendered jss-preparing' });
     const source = next.createDiv();
     try {
-      const prepared = prepareDiagrams(markdown, `jss-${this.win.crypto.randomUUID()}`);
+      const token = `jss-${this.win.crypto.randomUUID()}`;
+      const withHeadings = prepareSlideHeadings(markdown, token);
+      const prepared = prepareDiagrams(withHeadings, token);
       const pele = prepared.diagrams.length ? await loadHostPele() : null;
       if (sequence !== this.sequence) { this.removeChild(component); next.remove(); return; }
-      await MarkdownRenderer.render(this.app, pele ? prepared.markdown : markdown, source, path, component);
+      await MarkdownRenderer.render(this.app, pele ? prepared.markdown : withHeadings, source, path, component);
       if (sequence !== this.sequence) { this.removeChild(component); next.remove(); return; }
       // Use Obsidian's parsed callouts, so folded, nested, and lazy-continuation
       // notes disappear as a whole. Literal examples inside code remain content.
@@ -68,13 +75,33 @@ export class SlideSurface extends Component {
         const block = prepared.diagrams.find(block => block.key === host.dataset.jssDiagram);
         if (block && pele) diagrams.push(component.addChild(new PeleDiagram(host, block.source, block.key, pele)));
       }
-      // Heading level is deliberately irrelevant. Preserve all later headings as body content.
-      const headings = [...source.children].filter(el => /^H[1-6]$/.test(el.tagName));
+      const marked = [0, 1].map(index => {
+        const marker = source.querySelector(`[data-jss-header="${token}-${index}"]`);
+        const heading = marker?.closest('h1, h2, h3, h4, h5, h6') ?? null;
+        // Native heading metadata may retain inline HTML. Remove our own
+        // temporary marker there too, preserving ordinary heading links.
+        if (heading) for (const attribute of [...heading.attributes]) {
+          const clean = attribute.value.replace(`<span data-jss-header="${token}-${index}"></span>`, '');
+          if (clean !== attribute.value) heading.setAttribute(attribute.name, clean);
+        }
+        marker?.remove();
+        return heading;
+      });
+      const legacy = [...source.children].filter(el => /^H[1-6]$/.test(el.tagName)).slice(0, 2);
+      const reserved = headingSlots(markdown).some(slot => !slot.heading);
+      // Preserve existing HTML/postprocessor headers but edit only mapped Markdown.
+      const editable = reserved || [0, 1].every(index => (legacy[index] ?? null) === marked[index]);
+      next.dataset.headingEditing = String(editable);
+      const headings: Element[] = [];
       const header = next.createDiv({ cls: 'jss-slide-header' });
-      for (const [index, heading] of headings.slice(0, 2).entries()) {
+      for (const index of [0, 1]) {
+        const heading = editable ? marked[index] : legacy[index];
+        if (!heading) continue;
+        headings.push(heading);
         const region = header.createDiv({ cls: index ? 'jss-subtitle-region' : 'jss-title-region' });
         const content = region.createDiv({ cls: 'jss-fit-content' });
         heading.classList.add(index ? 'jss-subtitle' : 'jss-title');
+        if (editable) heading.setAttribute('data-jss-heading-role', index ? 'subtitle' : 'title');
         content.append(heading);
       }
       if (!headings.length) header.remove();
