@@ -1,6 +1,7 @@
 import { readSlideAreas, slideCallout, type SlideArea } from './details.ts';
 import { readPresentationTitle, type PresentationTitle } from './presentation-title.ts';
 import { protectedMarkdown } from './markdown-blocks.ts';
+import { headingValue } from './slide-headings.ts';
 
 export interface Slide {
   start: number;
@@ -45,20 +46,7 @@ export function parseDeck(source: string): Deck {
 
 function makeSlide(source: string, start: number, end: number, index: number): Slide {
   const markdown = source.slice(start, end);
-  let fence = '';
-  let title = '';
-  let previous = '';
-  let comment = false;
-  for (const line of markdown.split(/\r\n|\n|\r/)) {
-    const marker = line.match(/^ {0,3}(`{3,}|~{3,})(.*)$/);
-    if (marker) { fence = fence ? (marker[1]![0] === fence[0] && marker[1]!.length >= fence.length && !marker[2]!.trim() ? '' : fence) : marker[1]!; continue; }
-    if (fence) continue;
-    if (comment || line.includes('<!--')) { comment = !line.includes('-->'); continue; }
-    const heading = line.match(/^ {0,3}#{1,6}(?:[ \t]+|$)(.*?)(?:[ \t]+#+[ \t]*)?$/);
-    if (heading) { title = heading[1]!.trim(); break; }
-    if (/^ {0,3}=+[ \t]*$/.test(line) && previous.trim()) { title = previous.trim(); break; }
-    previous = line;
-  }
+  const title = headingValue(markdown, 'title');
   return { start, end, markdown, title: title || `Slide ${index + 1}`, areas: readSlideAreas(markdown) };
 }
 

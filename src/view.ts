@@ -1,4 +1,4 @@
-import { Component, MarkdownView, Notice, Scope, setIcon, TextFileView, type TFile, type WorkspaceLeaf } from 'obsidian';
+import { Component, MarkdownView, Menu, Notice, Scope, setIcon, TextFileView, type TFile, type WorkspaceLeaf } from 'obsidian';
 import { EditorState, Text } from '@codemirror/state';
 import { drawSelection, EditorView, keymap, lineNumbers, placeholder } from '@codemirror/view';
 import { defaultKeymap, indentWithTab } from '@codemirror/commands';
@@ -12,9 +12,14 @@ import { PLUGIN_ICON } from './icon';
 import { thumbnailBoundary, thumbnailColumns } from './sorter';
 import { normalizeHeadings } from './headings';
 import { HeadingModal } from './heading-modal';
+import { changeHeading, headingSlots, headingValue, type HeadingRole } from './slide-headings';
 
 export const VIEW_TYPE = 'just-simple-slides';
 interface Thumbnail { button: HTMLButtonElement; caption: HTMLElement; surface: SlideSurface | null; markdown?: string; visible: boolean }
+interface HeadingDraft {
+  owner: Component; form: HTMLElement; input: HTMLInputElement; status: HTMLElement;
+  source: string; index: number; file: TFile; role: HeadingRole;
+}
 
 export class SlidesView extends TextFileView {
   private root!: HTMLElement;
@@ -68,6 +73,7 @@ export class SlidesView extends TextFileView {
   private unloading = false;
   private loadVersion = 0;
   private bufferSave: Promise<void> = Promise.resolve();
+  private headingDraft: HeadingDraft | null = null;
 
   constructor(leaf: WorkspaceLeaf, private plugin: JustSimpleSlides) {
     super(leaf);
@@ -76,11 +82,11 @@ export class SlidesView extends TextFileView {
     this.sourceRatio = plugin.layout.sourceRatio;
     this.navigation = true;
     this.scope = new Scope(this.app.scope);
-    this.scope.register(['Mod'], 's', () => { void this.save(); return false; });
-    this.scope.register(['Mod'], 'z', () => { this.undo(false); return false; });
-    this.scope.register(['Mod', 'Shift'], 'z', () => { this.undo(true); return false; });
-    this.scope.register(['Mod'], 'y', () => { this.undo(true); return false; });
-    this.scope.register([], 'F5', () => { void this.present(); return false; });
+    this.scope.register(['Mod'], 's', event => { if (this.headingDraft?.form.contains(event.target as Node)) this.applyHeadingDraft(); else void this.save(); return false; });
+    this.scope.register(['Mod'], 'z', event => { if (this.headingDraft?.form.contains(event.target as Node)) return true; this.undo(false); return false; });
+    this.scope.register(['Mod', 'Shift'], 'z', event => { if (this.headingDraft?.form.contains(event.target as Node)) return true; this.undo(true); return false; });
+    this.scope.register(['Mod'], 'y', event => { if (this.headingDraft?.form.contains(event.target as Node)) return true; this.undo(true); return false; });
+    this.scope.register([], 'F5', event => { if (!this.headingDraft?.form.contains(event.target as Node)) void this.present(); return false; });
   }
   getViewType(): string { return VIEW_TYPE; }
   getDisplayText(): string { return this.file?.basename ?? 'Just Simple Slides'; }
@@ -166,6 +172,7 @@ export class SlidesView extends TextFileView {
     }
   }
   clear(): void {
+    this.closeHeadingDraft(false);
     this.loadedFile = null;
     this.loadVersion++;
     this.source = '';
@@ -288,12 +295,20 @@ export class SlidesView extends TextFileView {
     const stageHeader = main.createDiv({ cls: 'jss-stage-header' });
     stageHeader.createSpan({ text: 'Slide preview' });
     this.density = stageHeader.createSpan({ cls: 'jss-density', attr: { role: 'status' } });
+    const headingButton = this.button(stageHeader, 'pencil', 'Edit title or subtitle', () => this.headingMenu(headingButton));
+    headingButton.setAttribute('aria-haspopup', 'menu');
     this.stage = main.createDiv({ cls: 'jss-stage', attr: { tabindex: '0', role: 'region', 'aria-label': 'Slide preview' } });
     this.registerDomEvent(this.stage, 'pointerdown', event => {
       const target = event.target as HTMLElement;
       if (!target.closest('a, button, input, textarea, select, audio, video, iframe, [contenteditable]:not([contenteditable="false"])')) this.focusPreview();
     });
     this.surface = this.addChild(new SlideSurface(this.app, this.stage, 'Current slide preview'));
+    this.registerDomEvent(this.stage, 'dblclick', event => {
+      const target = event.target as HTMLElement;
+      if (target.closest('a, input, button, textarea')) return;
+      const role = target.closest<HTMLElement>('[data-jss-heading-role]')?.dataset.jssHeadingRole;
+      if (role === 'title' || role === 'subtitle') { event.preventDefault(); this.editHeading(role); }
+    });
     this.horizontalDivider = this.createDivider(main, 'horizontal');
     const source = this.sourcePanel = main.createDiv({ cls: 'jss-source' });
     const sourceHeader = source.createDiv({ cls: 'jss-source-header' });
@@ -327,6 +342,7 @@ export class SlidesView extends TextFileView {
       this.editor?.requestMeasure();
     }));
     this.registerDomEvent(this.root, 'keydown', event => {
+      if (this.headingDraft?.form.contains(event.target as Node)) return;
       const direction = ['ArrowRight', 'ArrowDown'].includes(event.key) ? 1 : ['ArrowLeft', 'ArrowUp'].includes(event.key) ? -1 : 0;
       if (direction && !this.sorter && !this.player && !event.defaultPrevented && !event.isComposing
         && !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey) {
@@ -382,6 +398,7 @@ export class SlidesView extends TextFileView {
 
   private setSorter(enabled: boolean): void {
     if (this.sorter === enabled) return;
+    this.closeHeadingDraft(false);
     this.clearDrag();
     this.history.breakGroup();
     this.sorter = enabled;
@@ -406,6 +423,84 @@ export class SlidesView extends TextFileView {
     const button = this.thumbnails[this.index]?.button;
     button?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     button?.focus({ preventScroll: true });
+  }
+
+  private headingMenu(button: HTMLElement): void {
+    if (!this.isFileLoaded() || this.sorter || this.player) return;
+    const slots = headingSlots(this.deck.slides[this.index]!.markdown), menu = new Menu().setUseNativeMenu(false);
+    if (!this.surface.headingsEditable) menu.addItem(item => item.setTitle('Edit headings in source').setIcon('file-text').onClick(() => { void this.editSource(); }));
+    else for (const [index, role] of (['title', 'subtitle'] as const).entries()) {
+      menu.addItem(item => item.setTitle(`${slots[index]?.heading ? 'Edit' : 'Add'} ${role}`)
+        .setIcon(index ? 'heading-3' : 'heading-2').onClick(() => this.editHeading(role)));
+    }
+    const rect = button.getBoundingClientRect();
+    menu.showAtPosition({ x: rect.left, y: rect.bottom }, button.ownerDocument);
+  }
+
+  private editHeading(role: HeadingRole): void {
+    if (!this.isFileLoaded() || !this.file || this.sorter || this.player || !this.surface.headingsEditable) return;
+    this.closeHeadingDraft(false);
+    this.history.breakGroup();
+    const markdown = this.deck.slides[this.index]!.markdown;
+    const owner = this.addChild(new Component());
+    const form = this.stage.createEl('form', { cls: 'jss-heading-editor', attr: { 'aria-label': `Edit slide ${role}` } });
+    owner.register(() => form.remove());
+    const label = form.createEl('label', { cls: 'jss-heading-field' });
+    label.createSpan({ text: role === 'title' ? 'Title' : 'Subtitle' });
+    const input = label.createEl('input', { cls: 'jss-heading-input', type: 'text', attr: { 'aria-label': `Slide ${role}`, spellcheck: 'true' } });
+    input.value = headingValue(markdown, role);
+    const actions = form.createDiv({ cls: 'jss-heading-actions' });
+    this.button(actions, 'check', `Save ${role}`, () => this.applyHeadingDraft());
+    const remove = this.button(actions, 'trash-2', `Remove ${role}`, () => this.applyHeadingDraft(true));
+    remove.disabled = !headingSlots(markdown)[role === 'title' ? 0 : 1]?.heading;
+    this.button(actions, 'x', 'Cancel heading edit', () => this.closeHeadingDraft());
+    form.createSpan({ cls: 'jss-heading-hint', text: 'Enter to save · Esc to cancel' });
+    const status = form.createSpan({ cls: 'jss-heading-status', attr: { role: 'status' } });
+    status.hidden = true;
+    this.headingDraft = { owner, form, input, status, source: this.source, index: this.index, file: this.file, role };
+    owner.registerDomEvent(form, 'submit', event => { event.preventDefault(); this.applyHeadingDraft(); });
+    owner.registerDomEvent(form, 'keydown', event => {
+      // Keep native input undo and cursor movement away from slide shortcuts.
+      event.stopPropagation();
+      if (event.isComposing) return;
+      if (event.key === 'Escape') { event.preventDefault(); this.closeHeadingDraft(); }
+      else if ((event.key === 'Enter' && event.target === input)
+        || ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's')) {
+        event.preventDefault(); this.applyHeadingDraft();
+      } else if (event.key === 'F5') event.preventDefault();
+    });
+    input.focus(); input.select();
+  }
+
+  private closeHeadingDraft(focus = true): void {
+    const draft = this.headingDraft;
+    if (!draft) return;
+    this.headingDraft = null;
+    this.removeChild(draft.owner);
+    if (focus && !this.closed) this.focusPreview();
+  }
+
+  private applyHeadingDraft(remove = false): void {
+    const draft = this.headingDraft;
+    if (!draft || !this.isFileLoaded()) return;
+    if (this.file !== draft.file || this.index !== draft.index || this.source !== draft.source) {
+      draft.status.hidden = false;
+      draft.status.setText('Source changed. Cancel and reopen this field to edit.');
+      return;
+    }
+    const slide = this.deck.slides[this.index]!;
+    const markdown = changeHeading(slide.markdown, draft.role, remove ? '' : draft.input.value);
+    this.closeHeadingDraft(false);
+    if (markdown !== slide.markdown) {
+      const selection = this.editor?.state.selection.main;
+      this.history.record(this.snapshot());
+      this.source = replaceSlide(this.source, slide, markdown);
+      this.deck = parseDeck(this.source);
+      this.loadEditor(selection?.anchor, selection?.head);
+      this.commitChange();
+      this.refresh(false);
+    }
+    this.focusPreview();
   }
 
   private button(host: HTMLElement, icon: string, label: string, action: () => void, text?: string, cls = ''): HTMLButtonElement {
@@ -590,6 +685,7 @@ export class SlidesView extends TextFileView {
     if (!this.isFileLoaded()) return;
     const next = redo ? this.history.redo(this.snapshot()) : this.history.undo(this.snapshot());
     if (!next) return;
+    this.closeHeadingDraft(false);
     this.source = next.source;
     this.deck = parseDeck(this.source);
     this.index = Math.min(next.index, this.deck.slides.length - 1);
@@ -606,6 +702,7 @@ export class SlidesView extends TextFileView {
       : action === 'delete' ? deleteSlide(this.source, this.deck, this.index)
         : moveSlide(this.source, this.deck, this.index, action === 'up' ? -1 : 1);
     if (next.source === this.source) return;
+    this.closeHeadingDraft(false);
     this.history.record(this.snapshot());
     this.source = next.source;
     this.deck = parseDeck(this.source);
@@ -620,6 +717,7 @@ export class SlidesView extends TextFileView {
     if (!this.isFileLoaded()) return;
     const source = normalizeHeadings(this.source, title);
     if (source === this.source) { new Notice('Headings already normalized.'); return; }
+    this.closeHeadingDraft(false);
     const selection = this.editor?.state.selection.main;
     this.history.record(this.snapshot());
     this.source = source;
@@ -653,6 +751,7 @@ export class SlidesView extends TextFileView {
     if (!this.isFileLoaded()) return;
     const next = moveSlideTo(this.source, this.deck, from, target);
     if (next.source === this.source) return;
+    this.closeHeadingDraft(false);
     this.history.record(this.snapshot());
     this.source = next.source;
     this.deck = parseDeck(this.source);
@@ -718,6 +817,7 @@ export class SlidesView extends TextFileView {
   select(index: number): void {
     const next = Math.max(0, Math.min(index, this.deck.slides.length - 1));
     if (next === this.index) return;
+    this.closeHeadingDraft(false);
     this.history.breakGroup();
     this.index = next;
     this.loadEditor();
@@ -728,6 +828,7 @@ export class SlidesView extends TextFileView {
   selectSourceOffset(offset: number): void { this.select(slideAt(this.deck, offset)); }
 
   private async editSource(): Promise<void> {
+    this.closeHeadingDraft(false);
     const file = this.file;
     const slide = this.deck.slides[this.index];
     if (!file || !slide) return;
@@ -860,6 +961,7 @@ export class SlidesView extends TextFileView {
   }
 
   async present(): Promise<void> {
+    this.closeHeadingDraft(false);
     if (this.player || !this.file) return;
     await this.save();
     this.player = this.addChild(new Presentation(this, this.deck, this.index, () => { this.player = null; }));
@@ -868,6 +970,7 @@ export class SlidesView extends TextFileView {
 
   async onClose(): Promise<void> {
     this.closed = true;
+    this.closeHeadingDraft(false);
     this.clearDrag();
     this.contentEl.ownerDocument.defaultView!.clearTimeout(this.timer);
     this.thumbObserver?.disconnect();

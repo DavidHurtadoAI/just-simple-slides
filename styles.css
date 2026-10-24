@@ -43,6 +43,14 @@
 .jss-stage-header { display: flex; justify-content: space-between; gap: 12px; align-items: center; padding: 12px 22px 0; font-size: var(--font-ui-smaller); color: var(--text-muted); }
 .jss-density { font-size: 11px; color: var(--text-faint); }
 .jss-stage { position: relative; flex: 1; min-height: 0; margin: 16px 22px; overflow: hidden; }
+.jss-stage-header .jss-density { margin-left: auto; }
+.jss-stage [data-jss-heading-role] { cursor: text; }
+.jss-heading-editor { position: absolute; z-index: 3; top: 12px; left: 12px; right: 12px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 10px 12px; border: 1px solid var(--interactive-accent); border-radius: var(--radius-m); background: var(--background-primary); box-shadow: var(--shadow-s); }
+.jss-heading-field { display: flex; flex: 1; min-width: 120px; gap: 10px; align-items: center; font-size: var(--font-ui-small); color: var(--text-muted); }
+.jss-app .jss-heading-input { width: 100%; min-width: 0; flex: 1; font-family: var(--font-text); font-size: var(--font-ui-medium); }
+.jss-heading-actions { display: flex; gap: 2px; }
+.jss-heading-hint, .jss-heading-status { flex-basis: 100%; color: var(--text-muted); font-size: var(--font-ui-smaller); }
+.jss-heading-status { color: var(--text-error); }
 .jss-source { flex: 0 0 var(--jss-source-size, 30%); min-height: 0; box-sizing: border-box; display: flex; flex-direction: column; }
 .jss-source-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 18px; color: var(--text-muted); font-size: var(--font-ui-smaller); }
 .jss-source-hint { color: var(--text-faint); font-size: 11px; }

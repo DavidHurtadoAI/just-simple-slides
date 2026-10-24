@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.9
+
+- Edit, add or remove only the slide title and subtitle from Slide editor. Double-click a preview heading or use the compact pencil menu; Enter/Ctrl/Cmd+S confirms, Escape cancels, and the trash button removes the selected heading. No full slide editor or presentation editing controls are added.
+- Keep titles and subtitles independent when either is removed, without promoting later body headings. An invisible HTML comment reserves a removed slot. New headings use H2/H3; existing levels, inline Markdown, spacing and Setext underlines are preserved. Each confirmed change is one undo step and synchronizes with the source and thumbnails.
+- Protect newer native Markdown edits from stale heading drafts, keep typing/cursor shortcuts local to the field, and support floating windows with owned UI cleanup. Body text, notes, media, optional Pele support and the minimum Obsidian version (1.7.2) are retained. See the README screenshots and validation report.
+
+![A single title field with save, remove and cancel controls](https://raw.githubusercontent.com/DavidHurtadoAI/just-simple-slides/0.2.9/assets/heading-edit-light.png)
+
+More screenshots: [dark mode](https://raw.githubusercontent.com/DavidHurtadoAI/just-simple-slides/0.2.9/assets/heading-edit-dark.png), [subtitle without a title](https://raw.githubusercontent.com/DavidHurtadoAI/just-simple-slides/0.2.9/assets/heading-subtitle-only.png), [floating window](https://raw.githubusercontent.com/DavidHurtadoAI/just-simple-slides/0.2.9/assets/heading-edit-floating.png).
+
 ## 0.2.8
 
 - Use Obsidian's own Pele runtime when available, without installing or bundling Pele or increasing the minimum Obsidian version (1.7.2). Fall back to native Markdown rendering when the optional host engine is unavailable. Extract genuine Mermaid fences before rendering with Pele, preserving literal examples, nested fences, comments, private notes, line endings and diagram-internal frontmatter.
