@@ -24,6 +24,9 @@ interface HeadingDraft {
 export class SlidesView extends TextFileView {
   private root!: HTMLElement;
   private rail!: HTMLElement;
+  private railHeader!: HTMLElement;
+  private railFooter!: HTMLElement;
+  private addButton!: HTMLButtonElement;
   private stage!: HTMLElement;
   private sourceHost!: HTMLElement;
   private sourceLabel!: HTMLElement;
@@ -207,10 +210,10 @@ export class SlidesView extends TextFileView {
     this.button(actions, PLUGIN_ICON, 'Present from this slide (F5)', () => { void this.present(); }, 'Present', 'mod-cta');
     const workspace = this.workspace = this.root.createDiv({ cls: 'jss-workspace' });
     const sidebar = this.sidebar = workspace.createDiv({ cls: 'jss-sidebar' });
-    const railHeader = sidebar.createDiv({ cls: 'jss-rail-header' });
+    const railHeader = this.railHeader = sidebar.createDiv({ cls: 'jss-rail-header' });
     railHeader.createSpan({ text: 'Slides' });
     railHeader.createSpan({ cls: 'jss-sorter-hint', text: 'Drag to reorder · Double-click to edit' });
-    this.button(railHeader, 'plus', 'Add slide after selection', () => this.perform('add'));
+    this.addButton = this.button(railHeader, 'plus', 'Add slide after selection', () => this.perform('add'));
     this.rail = sidebar.createDiv({ cls: 'jss-rail', attr: { role: 'listbox', 'aria-label': 'Slides', tabindex: '0' } });
     this.registerDomEvent(this.rail, 'dragover', event => {
       if (this.draggedIndex === null || this.dragSource !== this.source) return;
@@ -271,7 +274,7 @@ export class SlidesView extends TextFileView {
         this.thumbnails[this.index]?.button.focus();
       }
     });
-    const railFooter = sidebar.createDiv({ cls: 'jss-rail-footer' });
+    const railFooter = this.railFooter = sidebar.createDiv({ cls: 'jss-rail-footer' });
     this.button(railFooter, 'copy', 'Duplicate slide', () => this.perform('duplicate'));
     this.button(railFooter, 'arrow-up', 'Move slide up', () => this.perform('up'));
     this.button(railFooter, 'arrow-down', 'Move slide down', () => this.perform('down'));
@@ -403,6 +406,8 @@ export class SlidesView extends TextFileView {
     this.history.breakGroup();
     this.sorter = enabled;
     this.root.toggleClass('jss-sorter', enabled);
+    if (enabled) this.railFooter.prepend(this.addButton);
+    else this.railHeader.append(this.addButton);
     this.sorterButton.setAttribute('aria-pressed', String(enabled));
     this.sorterButton.lastElementChild?.setText(enabled ? 'Slide editor' : 'Slide sorter');
     setIcon(this.sorterButton.firstElementChild as HTMLElement, enabled ? 'panels-top-left' : 'layout-grid');
