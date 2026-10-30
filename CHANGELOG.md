@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.10
+
+- Move the Add slide button to the bottom toolbar in Slide sorter, immediately before Duplicate slide. The button returns to the thumbnail header in Slide editor.
+
 ## 0.2.9
 
 - Edit, add or remove only the slide title and subtitle from Slide editor. Double-click a preview heading or use the compact pencil menu; Enter/Ctrl/Cmd+S confirms, Escape cancels, and the trash button removes the selected heading. No full slide editor or presentation editing controls are added.
