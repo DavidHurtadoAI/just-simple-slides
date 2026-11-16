@@ -1,84 +1,96 @@
-import { type App } from 'obsidian';
-import { ExportConflictModal, type ExportConflictChoice } from './export-modal';
+type FileIdentity = { dev: number; ino: number };
+type PdfHandle = {
+  writeFile(data: Uint8Array): Promise<void>;
+  stat(): Promise<FileIdentity>;
+  close(): Promise<void>;
+};
+type PdfFiles = {
+  open(path: string, flags: 'wx'): Promise<PdfHandle>;
+  stat(path: string): Promise<FileIdentity>;
+  unlink(path: string): Promise<void>;
+};
+type PdfPrinter = {
+  printToPDF(options: { printBackground: boolean; preferCSSPageSize: boolean }): Promise<Uint8Array>;
+};
 
-/** Convert markdown vault path to default PDF counterpart. */
-export function defaultPdfPath(markdownPath: string): string {
-  return markdownPath.replace(/\.md$/i, '') + '.pdf';
+export function pdfRuntime(win: Window): { printer: PdfPrinter; files: PdfFiles } | null {
+  const host = win as Window & { require?: (id: string) => unknown };
+  if (!host.require) return null;
+  const electron = host.require('electron') as { remote?: { getCurrentWebContents?: () => PdfPrinter } };
+  const printer = electron.remote?.getCurrentWebContents?.();
+  if (typeof printer?.printToPDF !== 'function') return null;
+  const { promises: files } = host.require('node:fs') as { promises?: PdfFiles };
+  return files ? { printer, files } : null;
 }
 
-/** Generate a copy path by appending an incremental index. */
-export function copyPdfPath(filePath: string, index: number): string {
-  const base = filePath.replace(/\.pdf$/i, '');
-  return `${base} ${index}.pdf`;
+function pdfPath(sourcePath: string, index: number): string {
+  const stem = sourcePath.replace(/\.md$/i, '');
+  return index === 0 ? stem + '.pdf' : stem + ' ' + index + '.pdf';
 }
 
-/** Determine the next available non-colliding copy destination. */
-export async function nextAvailablePdfPath(
-  filePath: string,
-  exists: (path: string) => Promise<boolean>,
+/** Reserve and write through the same handle. Vault.createBinary checks the path
+ * before writing, so an external creation between those operations could be lost. */
+export async function saveUniquePdf(
+  sourcePath: string, data: Uint8Array, fullPath: (path: string) => string, files: PdfFiles, signal: AbortSignal,
 ): Promise<string> {
-  let index = 1;
-  while (await exists(copyPdfPath(filePath, index))) {
-    index++;
-  }
-  return copyPdfPath(filePath, index);
-}
-
-/** Prompt the user with the conflict modal and resolve with their decision. */
-export function promptExportConflict(
-  app: App,
-  ownerDocument: Document,
-  existingPath: string,
-  copyPath: string,
-): Promise<ExportConflictChoice> {
-  return new Promise(resolve => {
-    new ExportConflictModal(app, ownerDocument, existingPath, copyPath, resolve).open();
-  });
-}
-
-/** Await loaded fonts, decoded images, and rendered diagrams before print rasterization. */
-export async function waitForDeckMedia(
-  deckEl: HTMLElement,
-  surfaces: { fit: () => void }[],
-  win: Window,
-  timeoutMs = 3000,
-): Promise<void> {
-  const doc = deckEl.ownerDocument;
-  if (doc?.fonts && 'ready' in doc.fonts) {
+  for (let index = 0; ; index++) {
+    signal.throwIfAborted();
+    const destination = pdfPath(sourcePath, index);
+    const absolute = fullPath(destination);
+    let file: PdfHandle;
     try {
-      await doc.fonts.ready;
-    } catch {
-      // Font load failures should not block export.
+      file = await files.open(absolute, 'wx');
+    } catch (error) {
+      if (typeof error === 'object' && error && 'code' in error && error.code === 'EEXIST') continue;
+      throw error;
     }
-  }
-
-  const start = Date.now();
-  const setTimeoutFn = win?.setTimeout?.bind(win) ?? setTimeout;
-
-  while (Date.now() - start < timeoutMs) {
-    const images = Array.from(deckEl.querySelectorAll<HTMLImageElement>('img'));
-    const pendingImages = images.filter(img => !img.complete);
-
-    const diagrams = Array.from(deckEl.querySelectorAll<HTMLElement>('.jss-diagram'));
-    const pendingDiagrams = diagrams.filter(el => !el.querySelector('svg') && !el.classList.contains('jss-diagram-error'));
-
-    const embeds = Array.from(deckEl.querySelectorAll<HTMLElement>('.internal-embed'));
-    const pendingEmbeds = embeds.filter(el => !el.classList.contains('is-loaded') && !el.querySelector('img, svg, canvas, .markdown-rendered'));
-
-    if (!pendingImages.length && !pendingDiagrams.length && !pendingEmbeds.length) break;
-
-    if (pendingImages.length) {
-      await Promise.race([
-        Promise.all(pendingImages.map(img => img.decode?.().catch(() => {}))),
-        new Promise(resolve => setTimeoutFn(resolve, 40)),
-      ]);
-    } else {
-      await new Promise(resolve => setTimeoutFn(resolve, 40));
+    try {
+      signal.throwIfAborted();
+      await file.writeFile(data);
+    } catch (error) {
+      // Clean up our own partial file. A different file may now exist at this path.
+      const [created, current] = await Promise.all([file.stat(), files.stat(absolute)]).catch(() => []);
+      if (created && current && created.dev === current.dev && created.ino === current.ino) {
+        await files.unlink(absolute).catch(() => {});
+      }
+      throw error;
+    } finally {
+      await file.close();
     }
+    return destination;
   }
+}
 
-  // Refit surfaces once media and font dimensions are settled.
-  for (const surface of surfaces) {
-    surface.fit();
+/** Resolve after the deck is printable, or fail without writing a partial export. */
+export async function waitForDeckMedia(
+  deckEl: HTMLElement, surfaces: { fit: () => void }[], win: Window, signal: AbortSignal, timeoutMs = 8000,
+): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  let ready = false;
+  for (;;) {
+    signal.throwIfAborted();
+    const images = [...deckEl.querySelectorAll('img')];
+    for (const image of images) {
+      if (image.loading === 'lazy') image.loading = 'eager';
+      if (image.complete && (image.currentSrc || image.src) && !image.naturalWidth) {
+        throw new Error('An image could not be loaded.');
+      }
+    }
+    if (deckEl.querySelector('.jss-diagram-error, .internal-embed:is(.is-unresolved, .mod-empty-attachment)')) {
+      throw new Error('A diagram or embed could not be rendered.');
+    }
+    const settled = deckEl.ownerDocument.fonts.status !== 'loading'
+      && images.every(image => image.complete && image.naturalWidth > 0)
+      && [...deckEl.querySelectorAll('.jss-diagram')].every(diagram => diagram.querySelector('svg'))
+      && [...deckEl.querySelectorAll('.internal-embed')].every(embed =>
+        embed.classList.contains('is-loaded') || embed.querySelector('img, svg, canvas, .markdown-rendered'));
+    if (settled && ready) {
+      for (const surface of surfaces) surface.fit();
+      if (deckEl.querySelector('.jss-diagram-error')) throw new Error('A diagram could not be rendered.');
+      return;
+    }
+    ready = settled;
+    if (Date.now() >= deadline) throw new Error('Timed out waiting for slide media and fonts.');
+    await new Promise<void>(resolve => win.setTimeout(resolve, 40));
   }
 }

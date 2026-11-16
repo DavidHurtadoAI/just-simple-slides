@@ -5,454 +5,268 @@ import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 
-// Setup Obsidian mock environment
 class Component {
-  addChild(child) { return child; }
-  removeChild() {}
-  unload() { this.unloaded = true; }
-  register() {}
+  load() { this.children = []; }
+  addChild(child) { this.children.push(child); return child; }
+  unload() { for (const child of this.children ?? []) child.unload(); }
 }
 class Scope { register() {} }
-class TFile {
-  constructor(path, source = '') {
-    this.path = path;
-    this.basename = path.replace(/\.[^/.]+$/, '');
-    this.extension = 'md';
-    this.source = source;
-  }
+class FileSystemAdapter {
+  getFullPath(path) { return path; }
 }
-class FileSystemAdapter {}
 class TextFileView {
-  constructor(leaf) {
-    this.leaf = leaf;
-    this.app = leaf.app;
-    this.file = null;
-    this.lastSavedData = null;
-    this.saving = false;
-    this.closed = false;
-    this.exporting = false;
-    this.player = null;
-    this.deck = { slides: [] };
-  }
-  async save() {}
+  constructor(leaf) { this.app = leaf.app; }
+  async save() { throw new Error('Export must not save the note'); }
 }
-class MarkdownView extends TextFileView {}
-class Plugin {
-  constructor(app) { this.app = app; }
-  async loadData() { return {}; }
-  registerView() {}
-  registerEvent() {}
-  addRibbonIcon() {}
-  addCommand() {}
-}
-
-const require = createRequire(import.meta.url);
-let lastNotice = '';
+const platform = { isDesktopApp: true };
+const notices = [];
 class Notice {
-  constructor(message) {
-    this.message = message;
-    lastNotice = message;
-  }
+  constructor(message) { notices.push(message); }
   hide() {}
 }
-
-let modalInstance = null;
-class Modal {
-  constructor(app) {
-    this.app = app;
-    this.containerEl = { ownerDocument: {} };
-    this.contentEl = { createEl: () => ({}), empty: () => {} };
-    modalInstance = this;
-  }
-  open() { this.onOpen?.(); }
-  close() { this.onClose?.(); }
-  setTitle() {}
-}
-class Setting {
-  constructor(el) { this.el = el; }
-  setName() { return this; }
-  addText() { return this; }
-  addButton(cb) {
-    const btn = {
-      setButtonText: () => btn,
-      setCta: () => btn,
-      setDestructive: () => btn,
-      onClick: fn => { btn.click = fn; return btn; },
-      buttonEl: { addClass: () => {} },
-    };
-    cb(btn);
-    this.buttons = this.buttons || [];
-    this.buttons.push(btn);
-    return this;
-  }
-}
-
-class SlideSurface extends Component {
-  constructor(app, host, label) {
-    super();
-    this.app = app;
-    this.host = host;
-    this.label = label;
-  }
-  async render() {}
+class SlideSurface {
+  constructor(app) { this.app = app; }
+  async render(markdown, path) { this.app.rendered.push({ markdown, path }); }
   fit() {}
+  unload() { this.app.unloaded++; }
 }
-
-const obsidian = {
-  Component,
-  Scope,
-  TFile,
-  FileSystemAdapter,
-  TextFileView,
-  MarkdownView,
-  Plugin,
-  Modal,
-  Setting,
-  Notice,
-  MarkdownRenderer: { render: async () => {} },
-  setIcon() {},
-};
-
+const obsidian = { Component, FileSystemAdapter, Modal: class {}, Platform: platform, Scope, Notice, TextFileView };
+const require = createRequire(import.meta.url);
 const { outputFiles } = buildSync({
   stdin: {
-    contents: "export * from './src/export-pdf'; export { SlidesView } from './src/view'; export { default as SlidesPlugin } from './src/main';",
+    contents: "export * from './src/export-pdf'; export { SlidesView } from './src/view';",
     resolveDir: fileURLToPath(new URL('../', import.meta.url)),
   },
   bundle: true,
   write: false,
   format: 'cjs',
   platform: 'node',
-  external: [
-    'obsidian',
-    './surface',
-    '@codemirror/state',
-    '@codemirror/view',
-    '@codemirror/commands',
-    '@codemirror/search',
-  ],
+  external: ['obsidian', './surface', '@codemirror/state', '@codemirror/view', '@codemirror/commands', '@codemirror/search'],
 });
-
 const mod = { exports: {} };
 vm.runInNewContext(outputFiles[0].text, {
-  module: mod,
-  exports: mod.exports,
-  require: name => {
-    if (name === 'obsidian') return obsidian;
-    if (name === './surface') return { SlideSurface };
-    return require(name);
-  },
-  console,
-  setTimeout,
-  clearTimeout,
+  module: mod, exports: mod.exports, console, AbortController,
+  require: id => id === 'obsidian' ? obsidian : id === './surface' ? { SlideSurface } : require(id),
 });
-const { defaultPdfPath, copyPdfPath, nextAvailablePdfPath, waitForDeckMedia, SlidesView, SlidesPlugin } = mod.exports;
+const { saveUniquePdf, waitForDeckMedia, SlidesView } = mod.exports;
+const bytes = new Uint8Array([37, 80, 68, 70]);
+const existing = new Uint8Array([1, 2, 3]);
+const signal = () => new AbortController().signal;
+const newFile = (path = 'Folder/MyDeck.md') => ({ path, basename: 'MyDeck' });
 
-test('defaultPdfPath generates a PDF path beside the markdown file', () => {
-  assert.equal(defaultPdfPath('Deck.md'), 'Deck.pdf');
-  assert.equal(defaultPdfPath('Folder/Subfolder/Presentation.MD'), 'Folder/Subfolder/Presentation.pdf');
-  assert.equal(defaultPdfPath('Notes'), 'Notes.pdf');
-});
+function fileSystem(entries = [], options = {}) {
+  const vault = new Map(entries);
+  let inode = 0;
+  const identities = new Map();
+  const files = {
+    async open(path, flag) {
+      assert.equal(flag, 'wx');
+      if (vault.has(path)) throw Object.assign(new Error('Exists'), { code: 'EEXIST' });
+      const id = { dev: 1, ino: ++inode };
+      identities.set(path, id);
+      vault.set(path, null);
+      return {
+        async writeFile(data) {
+          await options.write?.(path, vault, identities);
+          vault.set(path, data);
+        },
+        async stat() { return id; },
+        async close() {},
+      };
+    },
+    async stat(path) { return identities.get(path); },
+    async unlink(path) { vault.delete(path); },
+  };
+  return { vault, files };
+}
 
-test('copyPdfPath generates sequential numbered filenames preserving base folder and name', () => {
-  assert.equal(copyPdfPath('Deck.pdf', 1), 'Deck 1.pdf');
-  assert.equal(copyPdfPath('Deck.pdf', 2), 'Deck 2.pdf');
-  assert.equal(copyPdfPath('Folder/Deck 2026.pdf', 1), 'Folder/Deck 2026 1.pdf');
-});
-
-test('nextAvailablePdfPath skips all existing files until an unused index is found', async () => {
-  const existing = new Set(['Deck 1.pdf', 'Deck 2.pdf']);
-  const exists = async path => existing.has(path);
-
-  const next = await nextAvailablePdfPath('Deck.pdf', exists);
-  assert.equal(next, 'Deck 3.pdf');
-});
-
-test('waitForDeckMedia waits for images, diagrams and refits all surfaces', async () => {
-  let fontsAwaited = false;
-  let fitCalled = 0;
-
+function context({ print, entries, invalidMedia = false } = {}) {
+  notices.length = 0;
+  const { vault, files } = fileSystem(entries);
   const doc = {
-    fonts: {
-      ready: (async () => { fontsAwaited = true; })(),
+    fonts: { status: 'loaded' },
+    documentElement: { classList: new Set() },
+    body: {},
+  };
+  doc.documentElement.classList.remove = doc.documentElement.classList.delete;
+  const printDecks = new Set();
+  doc.body.createDiv = () => {
+    const deck = {
+      ownerDocument: doc,
+      createDiv: () => ({}),
+      querySelector: selector => invalidMedia && selector.includes('.mod-empty-attachment') ? {} : null,
+      querySelectorAll: () => [],
+      remove: () => printDecks.delete(deck),
+    };
+    printDecks.add(deck);
+    return deck;
+  };
+  let prints = 0;
+  const printer = {
+    async printToPDF(options) {
+      assert.equal(options.printBackground, true);
+      assert.equal(options.preferCSSPageSize, true);
+      assert.ok(doc.documentElement.classList.has('jss-printing-pdf'));
+      assert.equal(printDecks.size, 1);
+      prints++;
+      return print ? print(vault) : bytes;
     },
   };
-
-  const image = {
-    complete: false,
-    decode: async () => { image.complete = true; },
+  doc.defaultView = {
+    setTimeout: callback => queueMicrotask(callback),
+    require: id => id === 'electron' ? { remote: { getCurrentWebContents: () => printer } } : { promises: files },
   };
-
-  const diagram = {
-    querySelector: sel => (sel === 'svg' ? (diagram.ready ? {} : null) : null),
-    classList: { contains: () => false },
-    ready: false,
+  const app = { vault: { adapter: new FileSystemAdapter() }, rendered: [], unloaded: 0 };
+  const addView = () => {
+    const view = new SlidesView({ app }, { layout: { areaIndex: 0, sidebarWidth: 200, sourceRatio: 0.5 } });
+    view.contentEl = { ownerDocument: doc };
+    view.file = view.loadedFile = newFile();
+    view.deck = { slides: [{ markdown: '# Slide 1' }, { markdown: '# Slide 2' }] };
+    return view;
   };
-
-  const deckEl = {
-    ownerDocument: doc,
-    querySelectorAll: selector => {
-      if (selector === 'img') return [image];
-      if (selector === '.jss-diagram') return [diagram];
-      return [];
-    },
+  const clean = () => {
+    assert.equal(printDecks.size, 0);
+    assert.equal(doc.documentElement.classList.size, 0);
   };
-
-  const surface = {
-    fit: () => { fitCalled++; },
-  };
-
-  const win = {
-    setTimeout: fn => {
-      diagram.ready = true;
-      fn();
-      return 1;
-    },
-  };
-
-  await waitForDeckMedia(deckEl, [surface], win, 1000);
-
-  assert.ok(fontsAwaited, 'fonts.ready was awaited');
-  assert.ok(image.complete, 'image was decoded and marked complete');
-  assert.ok(diagram.ready, 'diagram was ready before completion');
-  assert.equal(fitCalled, 1, 'surface was refitted');
-});
-
-async function waitForModal() {
-  for (let i = 0; i < 20; i++) {
-    if (modalInstance) return modalInstance;
-    await new Promise(r => setTimeout(r, 5));
-  }
-  return modalInstance;
+  return { view: addView(), addView, app, vault, clean, prints: () => prints };
 }
 
-async function createTestContext(options = {}) {
-  modalInstance = null;
-  const binaryWrites = {};
-  const vaultFiles = { ...options.existingFiles };
+test('export keeps the selected slide snapshot and leaves the Markdown buffer unsaved', async () => {
+  const { view, vault, app, clean } = context();
+  const pending = view.exportPdf();
+  view.file = view.loadedFile = newFile('Different.md');
+  view.deck = { slides: [{ markdown: '# Changed' }] };
+  await pending;
+  assert.deepEqual(app.rendered, [
+    { markdown: '# Slide 1', path: 'Folder/MyDeck.md' },
+    { markdown: '# Slide 2', path: 'Folder/MyDeck.md' },
+  ]);
+  assert.equal(vault.get('Folder/MyDeck.pdf'), bytes);
+  assert.equal(vault.has('Different.pdf'), false);
+  assert.equal(app.unloaded, 2);
+  clean();
+});
 
-  const printDeckElements = [];
-  const fakeDoc = {
-    body: {
-      append: () => {},
-      createDiv: attrs => {
-        const el = {
-          attrs,
-          createDiv: () => ({ createDiv: () => ({}) }),
-          remove: () => {
-            const idx = printDeckElements.indexOf(el);
-            if (idx >= 0) printDeckElements.splice(idx, 1);
-          },
-          ownerDocument: fakeDoc,
-          querySelectorAll: () => [],
-        };
-        printDeckElements.push(el);
-        return el;
-      },
-    },
-    fonts: { ready: Promise.resolve() },
-    activeElement: null,
-  };
-
-  const fakeWin = {
-    setTimeout: fn => { fn(); return 1; },
-    clearTimeout: () => {},
-    printCalled: false,
-    print: () => { fakeWin.printCalled = true; },
-    addEventListener: (evt, cb) => {
-      if (evt === 'afterprint') fakeWin.afterprintCb = cb;
-    },
-    require: modName => {
-      if (modName === 'electron') {
-        return {
-          remote: {
-            getCurrentWebContents: () => ({
-              printToPDF: async () => {
-                if (options.printToPdfFails) throw new Error('PDF print driver failed');
-                return new Uint8Array([37, 80, 68, 70]); // %PDF
-              },
-            }),
-            shell: { openPath: () => {} },
-          },
-        };
-      }
-      return null;
-    },
-  };
-  fakeDoc.defaultView = fakeWin;
-
-  const adapter = {
-    exists: async path => Boolean(vaultFiles[path]),
-    writeBinary: async (path, buffer) => {
-      binaryWrites[path] = new Uint8Array(buffer);
-      vaultFiles[path] = binaryWrites[path];
-    },
-    getFullPath: path => `/vault/${path}`,
-  };
-  Object.setPrototypeOf(adapter, obsidian.FileSystemAdapter.prototype);
-
-  const app = {
-    workspace: {
-      on: () => ({}),
-      getLeavesOfType: () => [],
-    },
-    vault: {
-      adapter,
-    },
-  };
-
-  const plugin = new SlidesPlugin(app);
-  await plugin.onload();
-
-  const leaf = { app };
-  const view = new SlidesView(leaf, plugin);
-  view.contentEl = { ownerDocument: fakeDoc };
-  view.file = new TFile('MyDeck.md', '# Slide 1\n\n---\n\n# Slide 2');
-  view.deck = {
-    slides: [
-      { markdown: '# Slide 1', title: 'Slide 1' },
-      { markdown: '# Slide 2', title: 'Slide 2' },
-    ],
-  };
-
-  return { view, binaryWrites, vaultFiles, printDeckElements, fakeWin };
-}
-
-test('exportPdf exports clean PDF to default destination when no file collision exists', async () => {
-  const { view, binaryWrites, printDeckElements } = await createTestContext();
-
+test('an existing PDF and repeated exports produce numbered copies', async () => {
+  const { view, vault, clean } = context({ entries: [['Folder/MyDeck.pdf', existing], ['Folder/MyDeck 1.pdf', existing]] });
   await view.exportPdf();
-
-  assert.ok(binaryWrites['MyDeck.pdf'], 'MyDeck.pdf was written');
-  assert.equal(binaryWrites['MyDeck.pdf'][0], 37, '%PDF header written');
-  assert.equal(printDeckElements.length, 0, 'print deck cleaned up');
-  assert.equal(view.exporting, false, 'exporting flag is reset');
-  assert.ok(lastNotice.includes('MyDeck.pdf'), 'completion notice shown');
-});
-
-test('destination collision: overwrite preserves user choice and replaces destination', async () => {
-  const originalBytes = new Uint8Array([1, 2, 3]);
-  const { view, binaryWrites } = await createTestContext({
-    existingFiles: { 'MyDeck.pdf': originalBytes },
-  });
-
-  const exportPromise = view.exportPdf();
-
-  const modal = await waitForModal();
-  assert.ok(modal, 'modal opened on collision');
-  modal.onChoice({ action: 'overwrite' });
-
-  await exportPromise;
-
-  assert.ok(binaryWrites['MyDeck.pdf'], 'MyDeck.pdf was overwritten');
-  assert.equal(binaryWrites['MyDeck.pdf'][0], 37, 'new pdf content written');
-});
-
-test('destination collision: save copy writes to non-colliding copy and preserves existing file', async () => {
-  const originalBytes = new Uint8Array([1, 2, 3]);
-  const { view, binaryWrites, vaultFiles } = await createTestContext({
-    existingFiles: { 'MyDeck.pdf': originalBytes },
-  });
-
-  const exportPromise = view.exportPdf();
-
-  const modal = await waitForModal();
-  assert.ok(modal, 'modal opened on collision');
-  assert.equal(modal.copyPath, 'MyDeck 1.pdf');
-  modal.onChoice({ action: 'copy', path: modal.copyPath });
-
-  await exportPromise;
-
-  assert.equal(vaultFiles['MyDeck.pdf'], originalBytes, 'existing PDF untouched');
-  assert.ok(binaryWrites['MyDeck 1.pdf'], 'MyDeck 1.pdf written');
-});
-
-test('destination collision: cancel leaves existing file untouched and aborts write', async () => {
-  const originalBytes = new Uint8Array([1, 2, 3]);
-  const { view, binaryWrites, vaultFiles, printDeckElements } = await createTestContext({
-    existingFiles: { 'MyDeck.pdf': originalBytes },
-  });
-
-  const exportPromise = view.exportPdf();
-
-  const modal = await waitForModal();
-  assert.ok(modal, 'modal opened on collision');
-  modal.onChoice({ action: 'cancel' });
-
-  await exportPromise;
-
-  assert.equal(vaultFiles['MyDeck.pdf'], originalBytes, 'existing PDF untouched');
-  assert.equal(Object.keys(binaryWrites).length, 0, 'no files written');
-  assert.equal(view.exporting, false, 'exporting reset');
-  assert.equal(printDeckElements.length, 0, 'no deck elements left');
-});
-
-test('repeated export with save copy generates incremental copies (Deck 1.pdf, Deck 2.pdf)', async () => {
-  const { view, binaryWrites } = await createTestContext();
-
-  // First export
   await view.exportPdf();
-  assert.ok(binaryWrites['MyDeck.pdf']);
-
-  // Second export -> collision -> choose copy
-  let promise = view.exportPdf();
-  let modal = await waitForModal();
-  assert.equal(modal.copyPath, 'MyDeck 1.pdf');
-  modalInstance = null;
-  modal.onChoice({ action: 'copy', path: modal.copyPath });
-  await promise;
-  assert.ok(binaryWrites['MyDeck 1.pdf']);
-
-  // Third export -> collision -> choose copy
-  promise = view.exportPdf();
-  modal = await waitForModal();
-  assert.equal(modal.copyPath, 'MyDeck 2.pdf');
-  modalInstance = null;
-  modal.onChoice({ action: 'copy', path: modal.copyPath });
-  await promise;
-  assert.ok(binaryWrites['MyDeck 2.pdf']);
+  assert.equal(vault.get('Folder/MyDeck.pdf'), existing);
+  assert.equal(vault.get('Folder/MyDeck 1.pdf'), existing);
+  assert.equal(vault.get('Folder/MyDeck 2.pdf'), bytes);
+  assert.equal(vault.get('Folder/MyDeck 3.pdf'), bytes);
+  clean();
 });
 
-test('source changes during export do not affect snapshotted output', async () => {
-  const { view, binaryWrites } = await createTestContext();
-
-  const promise = view.exportPdf();
-
-  // Mutate file and slides while export is running
-  view.file = new TFile('AnotherFile.md', '# Modified');
-  view.deck = { slides: [{ markdown: '# Changed', title: 'Changed' }] };
-
-  await promise;
-
-  // Output must still be MyDeck.pdf (the snapshotted target), not AnotherFile.pdf
-  assert.ok(binaryWrites['MyDeck.pdf'], 'written to snapshotted destination');
-  assert.equal(binaryWrites['AnotherFile.pdf'], undefined, 'later file switch ignored');
-});
-
-test('failures during PDF generation clean up print deck and reset exporting state', async () => {
-  const { view, printDeckElements } = await createTestContext({
-    printToPdfFails: true,
-  });
-
+test('a file that appears during printing is never overwritten', async () => {
+  const { view, vault, clean } = context({ print: current => {
+    current.set('Folder/MyDeck.pdf', existing);
+    return bytes;
+  } });
   await view.exportPdf();
-
-  assert.equal(view.exporting, false, 'exporting reset to false on failure');
-  assert.equal(printDeckElements.length, 0, 'printDeck removed from DOM on failure');
-  assert.ok(lastNotice.includes('Could not export'), 'error notice shown');
+  assert.equal(vault.get('Folder/MyDeck.pdf'), existing);
+  assert.equal(vault.get('Folder/MyDeck 1.pdf'), bytes);
+  clean();
 });
 
-test('mobile environment without electron falls back to window.print()', async () => {
-  const { view, fakeWin, printDeckElements } = await createTestContext();
+test('a second view cannot export while the current document is printing', async () => {
+  const { view, addView, vault, prints, clean } = context();
+  const source = view.exportPdf();
+  await addView().exportPdf();
+  await source;
+  assert.equal(prints(), 1);
+  assert.equal(vault.size, 1);
+  assert.ok(notices.some(message => message.includes('already running')));
+  clean();
+});
 
-  // Simulate mobile / non-Electron by removing window.require
-  fakeWin.require = undefined;
-
+test('an Electron print failure removes temporary print state and permits retry', async () => {
+  let attempts = 0;
+  const { view, vault, clean } = context({ print: () => {
+    if (++attempts === 1) throw new Error('Print failed');
+    return bytes;
+  } });
   await view.exportPdf();
+  clean();
+  assert.equal(vault.size, 0);
+  await view.exportPdf();
+  clean();
+  assert.equal(vault.get('Folder/MyDeck.pdf'), bytes);
+});
 
-  assert.ok(fakeWin.printCalled, 'win.print() was called');
-  assert.ok(fakeWin.afterprintCb, 'afterprint listener was registered');
+test('cancelling during Electron printing never writes an output', async () => {
+  const { view, vault, clean } = context({ print: () => {
+    view.pdfExport.abort();
+    return bytes;
+  } });
+  await view.exportPdf();
+  assert.equal(vault.size, 0);
+  clean();
+});
 
-  // Trigger afterprint
-  fakeWin.afterprintCb();
-  assert.equal(printDeckElements.length, 0, 'print deck cleaned up on afterprint');
-  assert.equal(view.exporting, false, 'exporting reset');
+test('non-desktop Obsidian skips PDF printing and creates no temporary output', async () => {
+  const { view, vault, prints, clean } = context();
+  platform.isDesktopApp = false;
+  try { await view.exportPdf(); } finally { platform.isDesktopApp = true; }
+  assert.equal(prints(), 0);
+  assert.equal(vault.size, 0);
+  clean();
+});
+
+test('failed media prevents printing and cleans up the deck', async () => {
+  const { view, prints, vault, clean } = context({ invalidMedia: true });
+  await view.exportPdf();
+  assert.equal(prints(), 0);
+  assert.equal(vault.size, 0);
+  assert.ok(notices.some(message => message.includes('could not be rendered')));
+  clean();
+});
+
+test('a write failure removes only the file reserved by this export', async () => {
+  const { vault, files } = fileSystem([], { write: () => { throw new Error('Disk full'); } });
+  await assert.rejects(saveUniquePdf('MyDeck.md', bytes, name => name, files, signal()), /Disk full/);
+  assert.equal(vault.size, 0);
+
+  const replaced = fileSystem([], { write: (path, current, identities) => {
+    current.set(path, existing);
+    identities.set(path, { dev: 1, ino: 42 });
+    throw new Error('Disk full');
+  } });
+  await assert.rejects(saveUniquePdf('MyDeck.md', bytes, name => name, replaced.files, signal()), /Disk full/);
+  assert.equal(replaced.vault.get('MyDeck.pdf'), existing);
+});
+
+test('media waits for fonts, lazy images and diagrams before the final fit', async () => {
+  const fonts = { status: 'loading' };
+  const image = { loading: 'lazy', complete: false, naturalWidth: 0 };
+  let diagramReady = false;
+  const deck = {
+    ownerDocument: { fonts },
+    querySelector: () => null,
+    querySelectorAll: selector => selector === 'img' ? [image] : selector === '.jss-diagram' ? [
+      { querySelector: () => diagramReady ? {} : null },
+    ] : [],
+  };
+  let fitted = 0;
+  await waitForDeckMedia(deck, [{ fit: () => fitted++ }], { setTimeout: callback => {
+    assert.equal(image.loading, 'eager');
+    fonts.status = 'loaded';
+    image.complete = true;
+    image.naturalWidth = 100;
+    diagramReady = true;
+    callback();
+  } }, signal());
+  assert.equal(fitted, 1);
+});
+
+test('unfinished fonts and broken images fail cleanly rather than printing a partial slide', async () => {
+  const deck = {
+    ownerDocument: { fonts: { status: 'loading' } },
+    querySelector: () => null,
+    querySelectorAll: () => [],
+  };
+  await assert.rejects(waitForDeckMedia(deck, [], {}, signal(), 0), /Timed out/);
+  const broken = { complete: true, src: 'missing.png', naturalWidth: 0 };
+  deck.querySelectorAll = selector => selector === 'img' ? [broken] : [];
+  await assert.rejects(waitForDeckMedia(deck, [], {}, signal()), /An image could not be loaded/);
 });
