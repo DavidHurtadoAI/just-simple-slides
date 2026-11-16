@@ -1,4 +1,10 @@
-# Local validation — 0.2.9
+# Local validation — 0.2.10
+
+Checked on 30 October 2026 in actual Obsidian 1.15.0 on Windows, in the canonical `@Nexus-dev` vault. Visually confirmed that Slide sorter places Add slide at the beginning of the bottom toolbar, immediately before Duplicate slide, and removes it from the header. Switching back to Slide editor restores the button to the thumbnail header; entering the sorter again restores the bottom-toolbar order.
+
+`npm run check` passed **97 unit tests**, zero lint warnings, Chromium 114 CSS compatibility, strict TypeScript, production build and packaging. The central installer and `verify just-simple-slides` confirmed the installed build matches the source artifacts.
+
+## Previous validation — 0.2.9
 
 Checked on 24 October 2026 in actual Obsidian 1.15.0 and 1.14.5 on Windows, only in the project's disposable `qa/vault` and isolated profiles. The minimum Obsidian version remains 1.7.2; Pele is still optional and supplied by the host. No development-vault or Nexus Markdown files were changed.
 
