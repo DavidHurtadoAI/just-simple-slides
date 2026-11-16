@@ -1,4 +1,4 @@
-import { Component, MarkdownView, Menu, Notice, Scope, setIcon, TextFileView, type TFile, type WorkspaceLeaf } from 'obsidian';
+import { Component, FileSystemAdapter, MarkdownView, Menu, Notice, Platform, Scope, setIcon, TextFileView, type App, type TFile, type WorkspaceLeaf } from 'obsidian';
 import { EditorState, Text } from '@codemirror/state';
 import { drawSelection, EditorView, keymap, lineNumbers, placeholder } from '@codemirror/view';
 import { defaultKeymap, indentWithTab } from '@codemirror/commands';
@@ -13,8 +13,10 @@ import { thumbnailBoundary, thumbnailColumns } from './sorter';
 import { normalizeHeadings } from './headings';
 import { HeadingModal } from './heading-modal';
 import { changeHeading, headingSlots, headingValue, type HeadingRole } from './slide-headings';
+import { pdfRuntime, saveUniquePdf, waitForDeckMedia } from './export-pdf';
 
 export const VIEW_TYPE = 'just-simple-slides';
+const activePdfExports = new WeakSet<App>();
 interface Thumbnail { button: HTMLButtonElement; caption: HTMLElement; surface: SlideSurface | null; markdown?: string; visible: boolean }
 interface HeadingDraft {
   owner: Component; form: HTMLElement; input: HTMLInputElement; status: HTMLElement;
@@ -60,6 +62,7 @@ export class SlidesView extends TextFileView {
   private timer = 0;
   private closed = false;
   private player: Presentation | null = null;
+  private pdfExport: AbortController | null = null;
   private renderId = 0;
   private currentPreview = '';
   private draggedIndex: number | null = null;
@@ -208,6 +211,7 @@ export class SlidesView extends TextFileView {
       this.editor?.requestMeasure();
     }).addClass('jss-source-toggle');
     this.button(actions, PLUGIN_ICON, 'Present from this slide (F5)', () => { void this.present(); }, 'Present', 'mod-cta');
+    if (Platform.isDesktopApp) this.button(actions, 'printer', 'Export slides to PDF', () => { void this.exportPdf(); }, 'Export');
     const workspace = this.workspace = this.root.createDiv({ cls: 'jss-workspace' });
     const sidebar = this.sidebar = workspace.createDiv({ cls: 'jss-sidebar' });
     const railHeader = this.railHeader = sidebar.createDiv({ cls: 'jss-rail-header' });
@@ -973,8 +977,69 @@ export class SlidesView extends TextFileView {
     await this.player.start();
   }
 
+  async exportPdf(): Promise<void> {
+    const source = this.file;
+    if (!Platform.isDesktopApp || !source || !this.isFileLoaded(source) || this.player || !this.deck.slides.length) return;
+    if (activePdfExports.has(this.app)) {
+      new Notice('A PDF export is already running.');
+      return;
+    }
+
+    const doc = this.contentEl.ownerDocument;
+    const win = doc.defaultView;
+    const adapter = this.app.vault.adapter;
+    if (!win || !(adapter instanceof FileSystemAdapter)) {
+      new Notice('PDF export is unavailable in this window.');
+      return;
+    }
+
+    const sourcePath = source.path;
+    const slides = this.deck.slides.map(slide => slide.markdown);
+    const controller = this.pdfExport = new AbortController();
+    const { signal } = controller;
+    activePdfExports.add(this.app);
+    const owner = new Component();
+    let printDeck: HTMLElement | null = null;
+    let notice: Notice | null = null;
+    try {
+      const runtime = pdfRuntime(win);
+      if (!runtime) {
+        new Notice('PDF export is unavailable in this window.');
+        return;
+      }
+      notice = new Notice('Exporting slides to PDF…', 0);
+      owner.load();
+      const deck = printDeck = doc.body.createDiv({ cls: 'print jss-print-deck' });
+      const surfaces: SlideSurface[] = [];
+      await Promise.all(slides.map(markdown => {
+        const surface = owner.addChild(new SlideSurface(this.app, deck.createDiv({ cls: 'jss-print-page' }), 'Export slide'));
+        surfaces.push(surface);
+        return surface.render(markdown, sourcePath);
+      }));
+      await waitForDeckMedia(printDeck, surfaces, win, signal);
+
+      doc.documentElement.classList.add('jss-printing-pdf');
+      const data = await runtime.printer.printToPDF({ printBackground: true, preferCSSPageSize: true });
+      const path = await saveUniquePdf(sourcePath, data, name => adapter.getFullPath(name), runtime.files, signal);
+      if (!signal.aborted) new Notice('PDF saved to ' + path);
+    } catch (error) {
+      if (!signal.aborted) {
+        console.error('Just Simple Slides:', error);
+        new Notice(error instanceof Error ? 'Could not export slides to PDF. ' + error.message : 'Could not export slides to PDF.');
+      }
+    } finally {
+      try { owner.unload(); } finally {
+        printDeck?.remove();
+        doc.documentElement.classList.remove('jss-printing-pdf');
+        notice?.hide();
+        this.pdfExport = null;
+        activePdfExports.delete(this.app);
+      }
+    }
+  }
   async onClose(): Promise<void> {
     this.closed = true;
+    this.pdfExport?.abort();
     this.closeHeadingDraft(false);
     this.clearDrag();
     this.contentEl.ownerDocument.defaultView!.clearTimeout(this.timer);

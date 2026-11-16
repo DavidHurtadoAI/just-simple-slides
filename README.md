@@ -196,6 +196,12 @@ Every `[!slide]` callout stays out of the preview, thumbnails, and presentation,
 
 ![Private Notes and Cues selectors in the lower editor](assets/details.png)
 
+## Export to PDF
+
+In desktop Obsidian, open a slide deck and click **Export**. The PDF is saved beside the Markdown note with one 16:9 page per slide. Each export uses the current slide content and theme. If the filename is taken, the plugin creates a numbered copy.
+
+Local images and diagrams must finish rendering before export. If a resource fails or takes too long, Obsidian shows an error and leaves the note and existing PDFs intact. PDF export is available on desktop. On mobile, you can still edit and present slides.
+
 ## Presenting
 
 **Right / Down / Space / Enter / Page Down** advances. **Left / Up / Backspace / Page Up** goes back. **Home / End** jumps to the first/last slide. Click an empty part of the slide to advance. Navigation and exit buttons remain available below the slide. The player attempts native fullscreen and falls back to an app-filling overlay when the WebView does not support it.
