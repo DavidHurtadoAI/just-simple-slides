@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.11
+
+- Export the current slide deck to a PDF in desktop Obsidian, with one 16:9 page per slide and the current theme, local images and diagrams. Private slide notes stay outside the PDF.
+- Save beside the Markdown note, choosing a numbered copy whenever a filename is occupied. Reserve the destination during writing and serialize exports to protect existing files.
+- Wait for fonts and media before printing. Failed or missing media stops the export, and temporary print state is cleaned up after success, cancellation or failure.
+- Thanks to [@albortino](https://github.com/albortino) for contributing PDF export in [#16](https://github.com/DavidHurtadoAI/just-simple-slides/pull/16).
+
+Validated with 108 tests, lint, TypeScript and packaging checks, CI on Windows and Linux, and real exports in Obsidian 1.15.1. The light and dark PDFs were checked for page size, text, local images, diagrams, private-note exclusion and preservation of existing files and source Markdown.
+
 ## 0.2.10
 
 - Move the Add slide button to the bottom toolbar in Slide sorter, immediately before Duplicate slide. The button returns to the thumbnail header in Slide editor.
